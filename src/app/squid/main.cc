@@ -11,8 +11,8 @@ void Component::construct(Genode::Env &env) {
 //    vm_page hello;
 //    vm_page *hello_ptr = &hello;
 //    hello_ptr->id = 23;
-    char hello_ptr[] = "hello world!";
-    main._new_file("/dev/hdd/squid-cache/hello", (void*) hello_ptr, sizeof(hello_ptr));
+//    char hello_ptr[] = "hello world!";
+//    main._new_file("/dev/hdd/squid-cache/hello", (void*) hello_ptr, sizeof(hello_ptr));
     main._read_file("/dev/hdd/squid-cache/hello");
     Genode::log("passed.");
 }
