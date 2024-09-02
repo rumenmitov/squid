@@ -7,18 +7,31 @@
 #include <os/vfs.h>
 #include <vfs/file_system_factory.h>
 #include <base/buffered_output.h>
+#include <timer_session/connection.h>
 
 
-namespace PH_snapshot {
+/*
+ * Squid Structure is as follows:
+ * Upper Directory - designated by first two chars of hash
+ * Middle Directory - designated by second pair chars of hash
+ * Lower Directory - designated by third pair chars of hash
+ * Squid files - files that contain virtual page information
+ */
+
+#define PAGE_SIZE INT_MAX
+#define MD5_HASH_LEN 32
+
+namespace Squid_snapshot {
     using namespace Genode;
     struct Main;
 }
 
 typedef struct vm_page {
-    int id;
+    char vpid[32]; // virtual page identification
 } vm_page;
 
-struct PH_snapshot::Main
+
+struct Squid_snapshot::Main
 {
     Env &_env;
     Heap _heap { _env.ram(), _env.rm() };
@@ -35,6 +48,11 @@ struct PH_snapshot::Main
 
 	Directory _root_dir { _vfs_env };
 
-	void _new_file(char const *path, void *payload, size_t size);
-	void _read_file(char const *path);
+    Timer::Connection _timer { _env };
+
+    static char* gen_hash();
+
+	void init_squid_file(Path const path, vm_page *me, size_t size);
+	void read_squid_file(Path const path, vm_page *me);
+	void delete_squid_file(Path const path);
 };
