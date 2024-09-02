@@ -36,18 +36,16 @@ void PH_snapshot::Main::_read_file(char const *path) {
 
 			size_t const read_bytes = fd.read(at, buffer);
 
-            if (strcmp(buffer.start, "hello world!") == 0) {
-                log("succ");
-            } else {
-                log("no succ");
-            }
-
-
 			at.value += read_bytes;
 
 			if (read_bytes < buffer.num_bytes)
 				break;
 		}
+
+        if(((vm_page*) buffer.start)->id == 23) {
+            log("succ=", ((vm_page*) buffer.start)->id );
+        } else log("no succ");
+
     } catch (...) {
         warning("couldn't read file: ", path);
     }
