@@ -5,13 +5,17 @@
 #include "squid.h"
 
 void Component::construct(Genode::Env &env) {
-    PH_snapshot::Main main(env);
+    Squid_snapshot::Main main(env);
 
     Genode::log("testing simple write to new file...");
     vm_page hello;
-    vm_page *hello_ptr = &hello;
-    hello_ptr->id = 23;
-    main._new_file("/hello", (void*) hello_ptr, sizeof(hello_ptr));
-    main._read_file("/hello");
+    main.init_squid_file("/hello", &hello, sizeof(hello));
+
+    vm_page hello_check;
+    main.read_squid_file("/hello", &hello_check);
+    Genode::log("passed.");
+
+    Genode::log("\ntesting timestamp...");
+    Genode::log("timestamp: ", Squid_snapshot::Main::get_hash());
     Genode::log("passed.");
 }

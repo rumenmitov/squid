@@ -5,7 +5,7 @@ namespace Squid_snapshot {
     struct Main;
 }
 
-void Squid_snapshot::Main::init_squid_file(Path const path, void *payload, size_t size) {
+void Squid_snapshot::Main::init_squid_file(Path const path, vm_page *me, size_t size) {
 
     try {
         New_file nf(_root_dir, path);
@@ -24,20 +24,19 @@ char* Squid_snapshot::Main::gen_hash() {
     char* timestamp;
     snprintf(timestamp, MD5_HASH_LEN, "%lu", _timer.curr_time());
 
-    char* hash = (char*) malloc(MD5_HASH_LEN);
-    if (hash == NULL) return NULL;
+    char hash[MD5_HASH_LEN];
 
     /*
      * NOTE:
      * This hashing is only a temporary solution. 
      * In the future replace with either MD5 or sha512.
      */
-    strncpy(hash, timestamp_str, strlen(timestamp_str));
-    for (int i = strlen(timestamp_str); i < MD5_HASH_LEN; i++) {
+    strncpy(hash, timestamp, strlen(timestamp));
+    for (int i = strlen(timestamp); i < MD5_HASH_LEN - 1; i++) {
         hash[i] = '0';
     }
 
-    hash[MD5_HASH_LEN] = '\0';
+    hash[MD5_HASH_LEN - 1] = '\0';
     return hash;
 }
 
