@@ -16,6 +16,6 @@ void Component::construct(Genode::Env &env) {
     Genode::log("passed.");
 
     Genode::log("\ntesting timestamp...");
-    Genode::log("timestamp: ", Squid_snapshot::Main::get_hash());
+    Genode::log("timestamp: ", main.gen_hash());
     Genode::log("passed.");
 }

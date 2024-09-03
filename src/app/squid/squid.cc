@@ -10,7 +10,7 @@ void Squid_snapshot::Main::init_squid_file(Path const path, vm_page *me, size_t 
     try {
         New_file nf(_root_dir, path);
 
-        if ( nf.append((const char*)payload, size) != New_file::Append_result::OK ) {
+        if ( nf.append((const char*)me, size) != New_file::Append_result::OK ) {
             error("couldn't write to squid file: ", path);
         }
  

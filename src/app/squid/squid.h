@@ -50,7 +50,7 @@ struct Squid_snapshot::Main
 
     Timer::Connection _timer { _env };
 
-    static char* gen_hash();
+    char* gen_hash();
 
 	void init_squid_file(Path const path, vm_page *me, size_t size);
 	void read_squid_file(Path const path, vm_page *me);
