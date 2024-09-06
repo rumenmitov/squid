@@ -3,15 +3,12 @@
 #include <base/ram_allocator.h>
 
 #include "squid.h"
+#include "test_squid.h"
 
 void Component::construct(Genode::Env &env) {
-    PH_snapshot::Main main(env);
+    Squid_snapshot::Main main(env);
 
-    Genode::log("testing simple write to new file...");
-    vm_page hello;
-    vm_page *hello_ptr = &hello;
-    hello_ptr->id = 23;
-    main._new_file("/hello", (void*) hello_ptr, sizeof(hello_ptr));
-    main._read_file("/hello");
-    Genode::log("passed.");
+    Genode::log("Squid Cache Unit Tests:");
+    if (test_write_read(main)) Genode::log("test_write_read...passed");
+    else Genode::log("test_write_read...failed");
 }

@@ -1,31 +1,29 @@
 #include "squid.h"
+#include <stdio.h>
 
-namespace PH_snapshot {
-    using namespace Genode;
-    struct Main;
-}
 
-void PH_snapshot::Main::_new_file(char const *path, void *payload, size_t size) {
-
-    Path p(path);
+Squid_snapshot::Error Squid_snapshot::Main::init(char const *path, void *payload, size_t size) {
 
     try {
-        New_file nf(_root_dir, p);
+        New_file nf(_root_dir, path);
 
         if ( nf.append((const char*)payload, size) != New_file::Append_result::OK ) {
-            error("couldn't write to file!");
+            return Squid_snapshot::Error::WriteFile;
         }
  
     } catch (New_file::Create_failed) {
-        error("couldn't create file!");
+            return Squid_snapshot::Error::CreateFile;
     }
+
+    return Squid_snapshot::Error::None;
 }
 
 
-void PH_snapshot::Main::_read_file(char const *path) {
-    log("reading from file...");
-    Path p(path);
-    Readonly_file fd(_root_dir, p);
+Squid_snapshot::Error Squid_snapshot::Main::get(char const *path, vm_page *payload) {
+    if (payload == nullptr) goto NNN;
+NNN:
+
+    Readonly_file fd(_root_dir, path);
     Readonly_file::At at { 0 };
 
     char str_buf[1024];
@@ -42,13 +40,12 @@ void PH_snapshot::Main::_read_file(char const *path) {
 				break;
 		}
 
-        if(((vm_page*) buffer.start)->id == 23) {
-            log("succ=", ((vm_page*) buffer.start)->id );
-        } else log("no succ");
-
     } catch (...) {
-        warning("couldn't read file: ", path);
+        return Squid_snapshot::Error::ReadFile;
     }
+
+    payload = (vm_page*) ( (void*)buffer.start );
+    return Squid_snapshot::Error::None;
 }
 
 

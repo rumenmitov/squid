@@ -9,16 +9,23 @@
 #include <base/buffered_output.h>
 
 
-namespace PH_snapshot {
+namespace Squid_snapshot {
     using namespace Genode;
     struct Main;
+
+    enum Error {
+        WriteFile,
+        ReadFile,
+        CreateFile,
+        None
+    };
 }
 
 typedef struct vm_page {
     int id;
 } vm_page;
 
-struct PH_snapshot::Main
+struct Squid_snapshot::Main
 {
     Env &_env;
     Heap _heap { _env.ram(), _env.rm() };
@@ -35,6 +42,6 @@ struct PH_snapshot::Main
 
 	Directory _root_dir { _vfs_env };
 
-	void _new_file(char const *path, void *payload, size_t size);
-	void _read_file(char const *path);
+    Squid_snapshot::Error init(char const *path, void *payload, size_t size);
+	Squid_snapshot::Error get(char const *path, vm_page *payload);
 };
