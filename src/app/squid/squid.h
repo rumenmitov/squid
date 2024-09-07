@@ -22,6 +22,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define HASH_LEN 32
 
 /**
  * @brief Error types associated with Squid Cache.
@@ -36,9 +39,15 @@ typedef enum SquidError {
 
 // NOTE: This is only here for testing purposes.
 typedef struct vm_page {
-    int id;
+    char id[HASH_LEN];
+    int testing_secret;
 } vm_page;
 
+/**
+ * @brief Generates a hash based on timestamp. NEEDS TO BE UPDATED!!!
+ * @returns char *
+ */
+char* squid_generate_hash();
 
 /**
  * @brief Creates squid file.
