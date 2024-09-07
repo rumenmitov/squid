@@ -12,22 +12,16 @@ set dd     [installed_command dd]
 set build_components {
 	core init
 	timer
-    driver/ahci
-    driver/nvme
 	driver/platform
-	app/pci_decode
-	driver/acpi
 	server/lx_block
-	server/report_rom
 	server/vfs
-    lib/vfs
+	lib/vfs
 	lib/vfs_lwext4
-	test/libc_vfs
-    lib/ld
-    lib/libc
-    lib/libm
-    lib/posix
-    app/squid
+	lib/ld
+	lib/libc
+	lib/libm
+	lib/posix
+	app/squid
 }
 
 build $build_components
@@ -105,16 +99,6 @@ append config {
 
 install_config $config
 
-#
-# Boot modules
-#
-
-# generic modules
-# set boot_modules {
-# 	core ld.lib.so init timer report_rom lx_block
-# 	vfs_lwext4.lib.so ext4.raw libc.lib.so test-libc_vfs vfs.lib.so
-# 	vfs
-# }
 
 append qemu_args " -nographic "
 append qemu_args " -device ahci,id=ahci "

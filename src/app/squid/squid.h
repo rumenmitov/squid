@@ -48,7 +48,6 @@ typedef struct vm_page {
  * @returns SquidError_t
  */
 SquidError_t squid_file_init(char const *path, void *payload, size_t size);
->>>>>>> unit_tests
 
 /**
  * @brief Reads from squid file into payload buffer.

@@ -1,0 +1,13 @@
+assert_spec x86
+
+set is_qemu         [have_include power_on/qemu]
+set is_old          [expr [have_spec fiasco] || [have_spec okl4] || [have_spec pistachio]]
+set is_32bit_x86_hw [expr !$is_qemu && [have_spec 32bit]]
+
+#
+# Only run on supported platforms
+#
+if {[expr [have_spec linux] || $is_32bit_x86_hw || [expr $is_qemu && $is_old]]} {
+	puts "This run script is not supported on this platform."
+	exit 0
+}

@@ -1,0 +1,207 @@
+assert_spec x86
+
+set is_qemu         [have_include power_on/qemu]
+set is_old          [expr [have_spec fiasco] || [have_spec okl4] || [have_spec pistachio]]
+set is_32bit_x86_hw [expr !$is_qemu && [have_spec 32bit]]
+
+#
+# Only run on supported platforms
+#
+if {[expr [have_spec linux] || $is_32bit_x86_hw || [expr $is_qemu && $is_old]]} {
+	puts "This run script is not supported on this platform."
+	exit 0
+}
+
+#
+# Check used commands
+#
+set mke4fs [installed_command mkfs.ext4]
+set dd     [installed_command dd]
+
+#
+# Build
+#
+set build_components {
+	core init
+	timer
+    	driver/ahci
+	driver/platform
+	server/report_rom
+	driver/acpi
+	app/pci_decode	
+	server/vfs
+	lib/vfs
+	lib/vfs_lwext4
+	lib/ld
+	lib/libc
+	lib/libm
+	lib/posix
+	app/squid
+}
+
+build $build_components
+
+#
+# Build Ext4-file-system image
+#
+set image_size 16
+catch { exec $dd if=/dev/zero of=bin/ext4.raw bs=1M seek=$image_size count=0 }
+catch { exec $mke4fs -O^metadata_csum -F bin/ext4.raw }
+
+create_boot_directory
+
+#
+# Generate config
+#
+append config {
+<config>
+	<parent-provides>
+		<service name="ROM"/>
+		<service name="IRQ"/>
+		<service name="IO_MEM"/>
+		<service name="IO_PORT"/>
+		<service name="PD"/>
+		<service name="RM"/>
+		<service name="CPU"/>
+		<service name="LOG"/>
+	</parent-provides>
+	<default-route>
+		<any-service> <parent/> <any-child/> </any-service>
+	</default-route>
+	<default caps="100"/>
+
+	<start name="timer">
+		<resource name="RAM" quantum="1M"/>
+		<provides><service name="Timer"/></provides>
+	</start>
+
+	<start name="report_rom">
+		<resource name="RAM" quantum="2M"/>
+		<provides> <service name="Report"/> <service name="ROM"/> </provides>
+		<config>
+			<policy label="pci_decode -> system" report="acpi -> acpi"/>
+			<policy label="platform -> devices"  report="pci_decode -> devices"/>
+		</config>
+	</start>
+
+	<start name="pci_decode" caps="350">
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="Report">             <child name="report_rom"/> </service>
+			<service name="ROM" label="system"> <child name="report_rom"/> </service>
+			<service name="IO_MEM"> <parent/> </service>
+			<service name="LOG">    <parent/> </service>
+			<service name="PD">     <parent/> </service>
+			<service name="RM">     <parent/> </service>
+			<service name="CPU">    <parent/> </service>
+			<service name="ROM">    <parent/> </service>
+		</route>
+	</start>
+
+	<start name="acpi" caps="350">
+		<resource name="RAM" quantum="4M"/>
+		<route>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="IO_MEM"> <parent/> </service>
+			<service name="LOG">    <parent/> </service>
+			<service name="PD">     <parent/> </service>
+			<service name="RM">     <parent/> </service>
+			<service name="CPU">    <parent/> </service>
+			<service name="ROM">    <parent/> </service>
+		</route>
+	</start>
+
+	<start name="pci_decode" caps="350">
+		<resource name="RAM" quantum="2M"/>
+		<route>
+			<service name="Report">             <child name="report_rom"/> </service>
+			<service name="ROM" label="system"> <child name="report_rom"/> </service>
+			<service name="IO_MEM"> <parent/> </service>
+			<service name="LOG">    <parent/> </service>
+			<service name="PD">     <parent/> </service>
+			<service name="RM">     <parent/> </service>
+			<service name="CPU">    <parent/> </service>
+			<service name="ROM">    <parent/> </service>
+		</route>
+	</start>
+
+	<start name="platform" caps="100" managing_system="yes">
+		<resource name="RAM" quantum="1M"/>
+		<provides>
+			<service name="Platform"/>
+		</provides>
+		<route>
+			<service name="ROM" label="devices"> <child name="report_rom"/> </service>
+			<service name="Report"> <child name="report_rom"/> </service>
+			<service name="IRQ">     <parent/> </service>
+			<service name="IO_MEM">  <parent/> </service>
+			<service name="IO_PORT"> <parent/> </service>
+			<service name="ROM">     <parent/> </service>
+			<service name="PD">      <parent/> </service>
+			<service name="CPU">     <parent/> </service>
+			<service name="LOG">     <parent/> </service>
+			<service name="Timer">   <child name="timer"/> </service>
+		</route>
+		<config>
+			<report devices="yes"/>
+			<policy label="ahci -> "> <pci class="AHCI"/> </policy>
+		</config>
+	</start>
+
+	<start name="ahci">
+		<resource name="RAM" quantum="10M"/>
+		<provides><service name="Block"/></provides>
+		<config atapi="yes">
+			<report ports="yes"/>
+			<policy label="vfs_lwext4_fs -> " device="0" writeable="yes" />
+			<policy label="squid -> " device="0" writeable="yes" />			
+		</config>
+	</start>
+
+ 	<start name="vfs_lwext4_fs">
+ 		<binary name="vfs"/>
+ 		<resource name="RAM" quantum="24M" />
+ 		<provides><service name="File_system"/></provides>
+ 		<config ld_verbose="yes">
+ 			<vfs>
+ 				<dir name="dev">
+ 					<block name="hdd" block_buffer_count="128"/>
+ 				</dir>
+ 				<lwext4 block_device="/dev/hdd" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
+ 			</vfs>
+ 			<policy label_prefix="squid" root="/" writeable="yes"/>
+ 		</config>
+		<route>
+			<service name="Block"><child name="ahci"/></service>
+			<any-service> <parent/> <any-child /> </any-service>
+		</route>
+ 	</start>
+
+	<start name="squid">
+		<resource name="RAM" quantum="4M"/>
+		<config>
+			<large seek="yes"/>
+			<vfs>
+                        <dir name="squid-cache"> <ram /> </dir>
+				<fs/>
+			</vfs>
+			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
+		</config>
+		
+	</start>
+</config>}
+
+install_config $config
+
+
+append qemu_args " -nographic "
+append qemu_args " -device ahci,id=ahci "
+append qemu_args " -drive id=disk,file=bin/ext4.raw,format=raw,if=none "
+append qemu_args " -device ide-hd,drive=disk,bus=ahci.0 "
+
+build_boot_image [list {*}[build_artifacts] ext4.raw]
+
+run_genode_until {exited with exit value*} 30
+
+#exec rm -f bin/ext4.raw
+
