@@ -1,5 +1,5 @@
 TARGET   = squid
-SRC_CC   = main_libc.cc
+SRC_CC   = main.c squid.c
 LIBS     = lwext4 base format vfs libc posix
 
 INC_DIR += $(call select_from_ports,lwext4)/include

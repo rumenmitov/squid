@@ -1,47 +1,29 @@
-#pragma once
+#ifndef __SQUID_H
+#define __SQUID_H
 
-#include <base/component.h>
-#include <base/sleep.h>
-#include <base/attached_rom_dataspace.h>
-#include <base/heap.h>
-#include <os/vfs.h>
-#include <vfs/file_system_factory.h>
-#include <base/buffered_output.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 
-
-namespace Squid_snapshot {
-    using namespace Genode;
-    struct Main;
-
-    enum Error {
-        WriteFile,
-        ReadFile,
-        CreateFile,
-        None
-    };
-}
+typedef enum SquidError {
+    OpenFile,
+    WriteFile,
+    ReadFile,
+    DeleteFile,
+    None
+} SquidError_t;
 
 typedef struct vm_page {
     int id;
 } vm_page;
 
-struct Squid_snapshot::Main
-{
-    Env &_env;
-    Heap _heap { _env.ram(), _env.rm() };
+SquidError_t squid_file_init(char const *path, void *payload, size_t size);
 
-    Main(Env &env) : _env(env) {}
+SquidError_t squid_file_read(char const *path, void *payload);
 
-	Attached_rom_dataspace _config { _env, "config" };
+SquidError_t squid_file_delete(char const *path);
 
-	Vfs::Global_file_system_factory _fs_factory { _heap };
-
-	Vfs::Simple_env _vfs_env { _env, _heap, _config.xml().sub_node("vfs") };
-
-	typedef Directory::Path Path;
-
-	Directory _root_dir { _vfs_env };
-
-    Squid_snapshot::Error init(char const *path, void *payload, size_t size);
-	Squid_snapshot::Error get(char const *path, vm_page *payload);
-};
+#endif // __SQUID_H

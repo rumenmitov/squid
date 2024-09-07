@@ -1,0 +1,25 @@
+#include "squid.h"
+
+SquidError_t squid_file_init(char const *path, void *payload, size_t size) 
+{
+    FILE* fd = fopen(path, "wb");
+    if (fd == NULL) return SquidError_t::OpenFile;
+
+    int bytes_written = fwrite(payload, size, 1, fd);
+    if (bytes_written != size) return SquidError_t::WriteFile;
+
+    return SquidError_t::None;
+}
+
+
+SquidError_t squid_file_read(char const *path, void *payload) 
+{
+    FILE* fd = fopen(path, "rb");
+    if (fd == NULL) return SquidError_t::OpenFile;
+
+    int bytes_read = fread(payload, 4096, 1, fd);
+    
+    return SquidError_t::None;
+}
+
+
