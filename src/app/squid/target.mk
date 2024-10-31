@@ -1,9 +1,9 @@
 TARGET   = squid
-SRC_CC   = main.c squid.c
-LIBS     = lwext4 base format vfs libc posix
+SRC_CC   = main.cc squid.cc
+LIBS     = lwext4 base format vfs
 
 INC_DIR += $(call select_from_ports,lwext4)/include
-INC_DIR += $(REP_DIR)/src/lib/lwext4/include
+INC_DIR += $(REP_DIR)/src/app/squid/include
 
 CC_OPT += -DCONFIG_USE_DEFAULT_CFG=1
 CC_OPT += -DCONFIG_HAVE_OWN_ERRNO=1

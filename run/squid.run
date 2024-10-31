@@ -9,29 +9,25 @@ set dd     [installed_command dd]
 #
 # Build
 #
-set build_components {
-	core init
-	timer
-	driver/platform
+create_boot_directory
+build {
+	core init timer
+	lib/ld lib/vfs
 	server/lx_block
 	server/vfs
-	lib/vfs
+	server/vfs_block
 	lib/vfs_lwext4
-	lib/ld
-	lib/libc
-	lib/libm
-	lib/posix
 	app/squid
 }
-
-build $build_components
 
 #
 # Build Ext4-file-system image
 #
 set image_size 16
-catch { exec $dd if=/dev/zero of=bin/ext4.raw bs=1M seek=$image_size count=0 }
-catch { exec $mke4fs -O^metadata_csum -F bin/ext4.raw }
+catch { exec $dd if=/dev/zero of=bin/vfs_block.raw bs=1M seek=$image_size count=0 }
+catch { exec $mke4fs -O^metadata_csum -F bin/vfs_block.raw }
+catch { exec $dd if=/dev/zero of=bin/squid_block.raw bs=1M seek=$image_size count=0 }
+catch { exec $mke4fs -O^metadata_csum -F bin/squid_block.raw }
 
 create_boot_directory
 
@@ -60,15 +56,23 @@ append config {
 		<provides><service name="Timer"/></provides>
 	</start>
 
-	<start name="lx_block" ld="no">
+	<start name="lx_block_vfs" ld="no">
+	        <binary name="lx_block" />
 		<resource name="RAM" quantum="1G"/>
 		<provides><service name="Block"/></provides>
-		<config file="ext4.raw" block_size="512" writeable="yes"/>
+		<config file="vfs_block.raw" block_size="512" writeable="yes"/>
+	</start>
+
+	<start name="lx_block_squid" ld="no">
+	        <binary name="lx_block" />
+		<resource name="RAM" quantum="1G"/>
+		<provides><service name="Block"/></provides>
+		<config file="squid_block.raw" block_size="512" writeable="yes"/>
 	</start>
 
  	<start name="vfs_lwext4_fs">
  		<binary name="vfs"/>
- 		<resource name="RAM" quantum="4M" />
+ 		<resource name="RAM" quantum="24M" />
  		<provides><service name="File_system"/></provides>
  		<config ld_verbose="yes">
  			<vfs>
@@ -80,9 +84,11 @@ append config {
  			<policy label_prefix="squid" root="/" writeable="yes"/>
  		</config>
 		<route>
+			<service name="Block"><child name="lx_block_vfs"/></service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
  	</start>
+	
 
 	<start name="squid">
 		<resource name="RAM" quantum="4M"/>
@@ -94,19 +100,18 @@ append config {
 			</vfs>
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 		</config>
+		<route>
+		  <service name="Block"><child name="lx_block_squid"/></service>
+	  	  <any-service> <parent/> <any-child /> </any-service>
+	  </route>
 	</start>
 </config>}
 
 install_config $config
 
-
-append qemu_args " -nographic "
-append qemu_args " -device ahci,id=ahci "
-append qemu_args " -drive id=disk,file=bin/ext4.raw,format=raw,if=none "
-append qemu_args " -device ide-hd,drive=disk,bus=ahci.0 "
-
-build_boot_image [list {*}[build_artifacts] ext4.raw]
+build_boot_image [list {*}[build_artifacts] vfs_block.raw squid_block.raw]
 
 run_genode_until {exited with exit value*} 30
 
-#exec rm -f bin/ext4.raw
+#exec rm -f bin/vfs_block.raw
+#exec rm -f bin/squid_block.raw
