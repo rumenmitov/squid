@@ -28,34 +28,30 @@ namespace Squid_snapshot {
 		if (!_root_dir.directory_exists(l2_dir)) {
 		    error("ERROR: couldn't create directory");
 		}
+
+		availability_matrix[i][j] = 0;
 	    }
-	    
 	}
-	
     }
 
 
     void Main::_hash(char *hash) 
     {
-	Genode::log("hashing debug");
-	
-	if (global_squid->current_cap == Squid_snapshot::L2_CAP) {
-	    global_squid->L2_cursor++;
-	    global_squid->current_cap = 0;
-
-	    if (global_squid->L2_cursor == Squid_snapshot::L2_SIZE) {
-		global_squid->L2_cursor = 0;
-		global_squid->L1_cursor++;
-
-		if (global_squid->L1_cursor == Squid_snapshot::L1_SIZE)
-		    error("ERROR: squid cache is full!!!");
+	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
+	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
+		if (availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
+		    Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
+				     i,
+				     j,
+				     availability_matrix[i][j]);
+		
+		    availability_matrix[i][j]++;
+		    return;
+		}
 	    }
 	}
 
-	Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
-			 global_squid->L1_cursor,
-			 global_squid->L2_cursor,
-			 global_squid->current_cap++);
+	Genode::error("SQUID ERROR: No more hashes available!");
     }
 
     Error Main::_write(char const *path, void *payload, size_t size) 
