@@ -44,6 +44,7 @@ namespace Squid_snapshot {
     
     static const unsigned int HASH_LEN = 32;
 
+    
     struct SquidFileHash 
     {
 	unsigned int l1_dir;
@@ -51,9 +52,11 @@ namespace Squid_snapshot {
 	unsigned int file_id;
 
 	SquidFileHash(void);
-	Path to_path(void);
+	SquidFileHash(unsigned int availability_matrix[L1_SIZE][L2_SIZE]);
+	
+	Genode::Directory::Path to_path(void);
     };
-    
+
 
     struct Main
     {
@@ -74,23 +77,23 @@ namespace Squid_snapshot {
 
 
 	unsigned int availability_matrix[Squid_snapshot::L1_SIZE][L2_SIZE];
-	
+
 
 	/**
          * @brief Writes payload to file (creates one if it does not exist).
          */	
-	enum Error _write(Path const *path, void *payload, size_t size);
+	enum Error _write(Path const &path, void *payload, size_t size);
 
 	
        /**
         * @brief Reads from squid file into payload buffer.
 	*/
-	enum Error _read(Path const *path, void *payload);
+	enum Error _read(Path const &path, void *payload);
 
 	/**
          * @brief Deletes squid file from filesystem.
 	 */
-	enum Error _delete(Path const *path);
+	enum Error _delete(Path const &path);
 
 
 	/**
