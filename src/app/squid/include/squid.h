@@ -3,12 +3,11 @@
  * @Date 2024-09-07
 
  squid.h provides an API to snapshot data to the disk.
- It is organized as a Radix Tree with an Upper Directory, Middle Directory, and a
- Lower Directory.
+ It is organized as a Radix Tree with an Upper Directory (L1), and a
+ Lower Directory (L2).
 
- Upper      - determined by the first two chars of the hash.
- Middle     - determined by the next pair of chars of the hash.
- Lower      - determined by the third pair of chars of the hash.
+ L1         - determined by the first two chars of the hash.
+ L2         - determined by the next pair of chars of the hash.
  Squid File - determined by remaining chars in hash.
 */
 
@@ -39,13 +38,19 @@ namespace Squid_snapshot {
 	None
     };
 
+    static const unsigned int L1_SIZE = 16;
+    static const unsigned int L2_SIZE = 256;
+    static const unsigned int L2_CAP  = 1000;
+    
+    static const unsigned int HASH_LEN = 32;
+    
+
     struct Main
     {
 	Env &_env;
-	Main(Env &env) : _env(env) {}
+	Main(Env &env);
 
 	Heap _heap { _env.ram(), _env.rm() };
-
 
 	Attached_rom_dataspace _config { _env, "config" };
 
@@ -57,13 +62,15 @@ namespace Squid_snapshot {
 
 	Directory _root_dir { _vfs_env };
 
+	unsigned int L1_cursor = 0;
+	unsigned int L2_cursor = 0;
 
-	const int HASH_LEN = 32;
+	unsigned int current_cap = 0;
 
 	/**
-         * @brief Generates a hash based on timestamp. #warning NEEDS TO BE UPDATED!!!
+         * @brief Generates a hash for the squid-cache.
          */
-	void _hash(char *me);
+	void _hash(char *hash);
 
 	/**
          * @brief Writes payload to file (creates one if it does not exist).

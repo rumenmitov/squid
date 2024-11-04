@@ -1,5 +1,6 @@
 #include <base/component.h>
 #include <squid.h>
+#include <benchmark.h>
 
 Squid_snapshot::Main *Squid_snapshot::global_squid = nullptr;
 
@@ -31,7 +32,12 @@ void Component::construct(Genode::Env &env)
     default:
 	Genode::log("passed.\n");
 	break;
-
     }
+
+    Genode::log("benchmarking squid...");
+
+    squid_benchmark();
+
+    Genode::log("benchmark finished.");
 
 }
