@@ -62,10 +62,9 @@ namespace Squid_snapshot {
 
 	Directory _root_dir { _vfs_env };
 
-	unsigned int L1_cursor = 0;
-	unsigned int L2_cursor = 0;
 
-	unsigned int current_cap = 0;
+	unsigned int availability_matrix[Squid_snapshot::L1_SIZE][L2_SIZE];
+	
 
 	/**
          * @brief Generates a hash for the squid-cache.
