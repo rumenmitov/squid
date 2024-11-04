@@ -7,6 +7,32 @@
 
 namespace Squid_snapshot {
 
+    SquidFileHash::SquidFileHash(void) 
+    {
+	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
+	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
+		if (global_squid->availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
+		    return SquidFileHash {
+			.l1_dir = i, l2_dir = j, file_id = global_squid->availability_matrix[i][j]++ 
+		    };
+		}
+	    }
+	}
+
+	Genode::error("SQUID ERROR: No more hashes available!");
+    }
+
+
+    Path SquidFileHash::to_path(void) 
+    {
+	Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
+			 l1_dir,
+			 l2_dir,
+			 file_id);
+    }
+    
+
+
     Main::Main(Env &env) : _env(env) 
     {
 	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
@@ -35,26 +61,7 @@ namespace Squid_snapshot {
     }
 
 
-    void Main::_hash(char *hash) 
-    {
-	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
-	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
-		if (availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
-		    Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
-				     i,
-				     j,
-				     availability_matrix[i][j]);
-		
-		    availability_matrix[i][j]++;
-		    return;
-		}
-	    }
-	}
-
-	Genode::error("SQUID ERROR: No more hashes available!");
-    }
-
-    Error Main::_write(char const *path, void *payload, size_t size) 
+    Error Main::_write(Path const *path, void *payload, size_t size) 
     {
 	try {
 	    New_file file(_root_dir, path);
@@ -70,7 +77,7 @@ namespace Squid_snapshot {
     }
 
 	  
-    Error Main::_read(char const *path, void *payload) 
+    Error Main::_read(Path const *path, void *payload) 
     {
 	Readonly_file file(_root_dir, path);
 	Readonly_file::At at { 0 };
@@ -95,17 +102,18 @@ namespace Squid_snapshot {
 	return Error::None;
     }
 
-    Error Main::_delete(char const *path) 
+    Error Main::_delete(Path const *path) 
     {
-	// TODO
-	(void) path;
+	
 	return Error::None;
     }
 
     Error Main::_test(void) 
     {
-	char message[20] = "payload";
-	switch (Main::_write("squid_test", (void*) message, sizeof(message) / sizeof(char))) {
+	char message[] = "payload";
+	SquidFileHash hash;
+	
+	switch (Main::_write(hash.to_path(), (void*) message, sizeof(message) / sizeof(char))) {
 	case Error::CreateFile:
 	    return Error::CreateFile;
 
@@ -126,7 +134,7 @@ namespace Squid_snapshot {
 
 	if (echo == nullptr) Genode::error("memory allocation nullptr");
 	
-	switch (Squid_snapshot::global_squid->_read("squid_test", (void*) echo)) {
+	switch (Squid_snapshot::global_squid->_read(hash.to_path(), (void*) echo)) {
 	case Error::ReadFile:
 	    return Error::ReadFile;
 

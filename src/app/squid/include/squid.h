@@ -43,6 +43,16 @@ namespace Squid_snapshot {
     static const unsigned int L2_CAP  = 1000;
     
     static const unsigned int HASH_LEN = 32;
+
+    struct SquidFileHash 
+    {
+	unsigned int l1_dir;
+	unsigned int l2_dir;
+	unsigned int file_id;
+
+	SquidFileHash(void);
+	Path to_path(void);
+    };
     
 
     struct Main
@@ -67,25 +77,20 @@ namespace Squid_snapshot {
 	
 
 	/**
-         * @brief Generates a hash for the squid-cache.
-         */
-	void _hash(char *hash);
-
-	/**
          * @brief Writes payload to file (creates one if it does not exist).
          */	
-	enum Error _write(char const *path, void *payload, size_t size);
+	enum Error _write(Path const *path, void *payload, size_t size);
 
 	
        /**
         * @brief Reads from squid file into payload buffer.
 	*/
-	enum Error _read(char const *path, void *payload);
+	enum Error _read(Path const *path, void *payload);
 
 	/**
          * @brief Deletes squid file from filesystem.
 	 */
-	enum Error _delete(char const *path);
+	enum Error _delete(Path const *path);
 
 
 	/**
