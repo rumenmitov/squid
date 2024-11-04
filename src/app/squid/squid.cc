@@ -1,28 +1,61 @@
 #include "include/squidlib.h"
 #ifdef __cplusplus
 
+#include <format/snprintf.h>
 #include "squid.h"
 
 
 namespace Squid_snapshot {
 
-    void Main::_hash(char *me) 
+    Main::Main(Env &env) : _env(env) 
     {
-	me = nullptr;
-	
-	auto hash_res = this->_heap.try_alloc( sizeof(char) * HASH_LEN );
-	
-	hash_res.with_result(
-	    [&](void *addr) { me = (char*) addr; },
-	    [&](Allocator::Alloc_error err) { error(err); });
+	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
+	    char l1_dir[100];
+	    Genode::memset(l1_dir, 0, 100);
+	    Format::snprintf(l1_dir, 100, "/squid-cache/%x", i);
+	    
+	    _root_dir.create_sub_directory(l1_dir);
+	    if (!_root_dir.directory_exists(l1_dir)) {
+		error("ERROR: couldn't create directory");
+	    }
 
-	if (me == nullptr) error("hash allocation == nullptr");
-
-	for (int i = 0; i < 32; i++) {
-	    me[i] = 0;
+	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
+		char l2_dir[100];
+		Genode::memset(l2_dir, 0, 100);
+		Format::snprintf(l2_dir, 100, "/squid-cache/%x/%x", i, j);
+	    
+		_root_dir.create_sub_directory(l2_dir);
+		if (!_root_dir.directory_exists(l2_dir)) {
+		    error("ERROR: couldn't create directory");
+		}
+	    }
+	    
 	}
 	
-	copy_cstring(me, "thisisasamplehash", 32);
+    }
+
+
+    void Main::_hash(char *hash) 
+    {
+	Genode::log("hashing debug");
+	
+	if (global_squid->current_cap == Squid_snapshot::L2_CAP) {
+	    global_squid->L2_cursor++;
+	    global_squid->current_cap = 0;
+
+	    if (global_squid->L2_cursor == Squid_snapshot::L2_SIZE) {
+		global_squid->L2_cursor = 0;
+		global_squid->L1_cursor++;
+
+		if (global_squid->L1_cursor == Squid_snapshot::L1_SIZE)
+		    error("ERROR: squid cache is full!!!");
+	    }
+	}
+
+	Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
+			 global_squid->L1_cursor,
+			 global_squid->L2_cursor,
+			 global_squid->current_cap++);
     }
 
     Error Main::_write(char const *path, void *payload, size_t size) 
@@ -129,9 +162,9 @@ namespace Squid_snapshot {
 
 //     #include <squidlib.h>
     
-//     void squid_hash(char *me) 
+//     void squid_hash(char *hash) 
 //     {
-// 	Squid_snapshot::global_squid->_hash(me);
+// 	Squid_snapshot::global_squid->_hash(hash);
 //     }
 
 
