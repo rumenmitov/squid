@@ -10,7 +10,10 @@ void squid_benchmark(void)
 
     
     for (int i = 0; i < 10000; i++) {
+	Genode::log("benchmark ", i);
+	
 	Squid_snapshot::SquidFileHash hash(Squid_snapshot::global_squid->availability_matrix);
 	Squid_snapshot::global_squid->_write(hash.to_path(), (void*) &obj, sizeof(obj));
+	Squid_snapshot::global_squid->_delete(hash);
     }
 }

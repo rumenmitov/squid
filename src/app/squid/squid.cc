@@ -7,22 +7,19 @@
 
 namespace Squid_snapshot {
     
-    SquidFileHash::SquidFileHash(void) 
-    {
-	l1_dir = 0;
-	l2_dir = 0;
-	file_id = 0;
-    }
+    SquidFileHash::SquidFileHash(void)
+	: l1_dir(0), l2_dir(0), file_id(0) {}
 
     
-    SquidFileHash::SquidFileHash(unsigned int availability_matrix[L1_SIZE][L2_SIZE]) 
+    SquidFileHash::SquidFileHash(unsigned int availability_matrix[16][256])
+	: l1_dir(0), l2_dir(0), file_id(0)
     {
 	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
 	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
-		if (global_squid->availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
+		if (availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
 		    this->l1_dir = i;
 		    this->l2_dir = j;
-		    this->file_id = global_squid->availability_matrix[i][j]++;
+		    this->file_id = availability_matrix[i][j]++;
 
 		    return;
 		}
@@ -121,8 +118,11 @@ namespace Squid_snapshot {
 	return Error::None;
     }
 
-    Error Main::_delete(Path const &path) 
+    Error Main::_delete(SquidFileHash &hash) 
     {
+	global_squid->_root_dir.unlink(hash.to_path());
+	// #warning this overwrites other hashes fix!!!
+	global_squid->availability_matrix[hash.l1_dir][hash.l2_dir]--;
 	
 	return Error::None;
     }

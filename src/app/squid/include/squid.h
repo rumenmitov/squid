@@ -52,7 +52,7 @@ namespace Squid_snapshot {
 	unsigned int file_id;
 
 	SquidFileHash(void);
-	SquidFileHash(unsigned int availability_matrix[L1_SIZE][L2_SIZE]);
+	SquidFileHash(unsigned int availability_matrix[16][256]);
 	
 	Genode::Directory::Path to_path(void);
     };
@@ -93,7 +93,7 @@ namespace Squid_snapshot {
 	/**
          * @brief Deletes squid file from filesystem.
 	 */
-	enum Error _delete(Path const &path);
+	enum Error _delete(SquidFileHash &hash);
 
 
 	/**
