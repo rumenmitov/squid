@@ -1,38 +1,72 @@
-#include "include/squidlib.h"
-#ifdef __cplusplus
+#include <squidlib.h>
+#include <squid.h>
+
 
 #include <format/snprintf.h>
-#include "squid.h"
 
 
 namespace Squid_snapshot {
+
+    L2_Dir::L2_Dir(void) 
+    {
+	for (unsigned int i = 0; i < CAPACITY; i++) {
+	    this->available_arr[i] = i;
+	}
+    }
+
+
+    unsigned int L2_Dir::get_hash(void) 
+    {
+	// TODO improve error handling when max cap is reached
+	// currently hash 0 is not used
+	if (this->available_count == 0) return 0;
+
+	this->available_count--;
+	return this->available_arr[this->available_count];
+    }
+
+
+    void L2_Dir::return_hash(unsigned int hash)
+    {
+	if (this->available_count == CAPACITY) return;
+
+	this->available_count++;
+	this->available_arr[this->available_count] = hash;
+    }
+    
     
     SquidFileHash::SquidFileHash(void)
 	: l1_dir(0), l2_dir(0), file_id(0) {}
 
     
-    SquidFileHash::SquidFileHash(unsigned int availability_matrix[16][256])
+    SquidFileHash::SquidFileHash(L2_Dir availability_matrix[16][256])
 	: l1_dir(0), l2_dir(0), file_id(0)
     {
 	for (unsigned int i = 0; i < Squid_snapshot::L1_SIZE; i++) {
 	    for (unsigned int j = 0; j < Squid_snapshot::L2_SIZE; j++) {
-		if (availability_matrix[i][j] < Squid_snapshot::L2_CAP - 1) {
-		    this->l1_dir = i;
-		    this->l2_dir = j;
-		    this->file_id = availability_matrix[i][j]++;
+		this->file_id = availability_matrix[i][j].get_hash();
 
-		    return;
-		}
+		if (this->file_id != 0) return;
 	    }
 	}
 
 	Genode::error("SQUID ERROR: No more hashes available!");
     }
 
+    SquidFileHash::~SquidFileHash(void) 
+    {
+	// TODO error checking
+	Squid_snapshot::global_squid->_root_dir.unlink(this->to_path());
+	Squid_snapshot::global_squid->
+	    availability_matrix[this->l1_dir][this->l2_dir]
+	    .return_hash(this->file_id);
+    }
+    
+
 
     Genode::Directory::Path SquidFileHash::to_path(void) 
     {
-	auto hash_res = Squid_snapshot::global_squid->_heap.try_alloc( sizeof(char) * 20 );
+	auto hash_res = Squid_snapshot::global_squid->_heap.try_alloc( sizeof(char) * 30 );
 	char *hash = nullptr;
 	
 	hash_res.with_result(
@@ -40,13 +74,14 @@ namespace Squid_snapshot {
 	    [&](Genode::Allocator::Alloc_error err) { Genode::error(err); });
 
 	if (hash == nullptr) Genode::error("memory allocation nullptr");
-	
-	return Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
-			 l1_dir,
-			 l2_dir,
-			 file_id);
-    }
-    
+
+	Format::snprintf(hash, Squid_snapshot::HASH_LEN, "/squid-cache/%x/%x/%x",
+		    l1_dir,
+		    l2_dir,
+		    file_id);
+
+	return Cstring(hash);
+    }    
 
 
     Main::Main(Env &env) : _env(env) 
@@ -70,8 +105,6 @@ namespace Squid_snapshot {
 		if (!_root_dir.directory_exists(l2_dir)) {
 		    error("ERROR: couldn't create directory");
 		}
-
-		availability_matrix[i][j] = 0;
 	    }
 	}
     }
@@ -118,14 +151,6 @@ namespace Squid_snapshot {
 	return Error::None;
     }
 
-    Error Main::_delete(SquidFileHash &hash) 
-    {
-	global_squid->_root_dir.unlink(hash.to_path());
-	// #warning this overwrites other hashes fix!!!
-	global_squid->availability_matrix[hash.l1_dir][hash.l2_dir]--;
-	
-	return Error::None;
-    }
 
     Error Main::_test(void) 
     {
@@ -180,69 +205,82 @@ namespace Squid_snapshot {
 };
 
 
+#ifdef __cplusplus
 
-// extern "C" {
+extern "C" {
 
-//     #include <squidlib.h>
+    #include <squidlib.h>
     
-//     void squid_hash(char *hash) 
-//     {
-// 	Squid_snapshot::global_squid->_hash(hash);
-//     }
+    void squid_hash(void *hash) 
+    {
+	// #warning should handle fail case (no more hashes)
+	Squid_snapshot::SquidFileHash squid_generated_hash(Squid_snapshot::global_squid->availability_matrix);
+	*((Squid_snapshot::SquidFileHash*) hash) = squid_generated_hash;
+    }
 
 
-//     enum SquidError squid_write(char const *path, void *payload, unsigned long long size) 
-//     {
-// 	switch (Squid_snapshot::global_squid->_write(path, payload, size)) {
-// 	case Squid_snapshot::Error::CreateFile:
-// 	    return SQUID_CREATE;
+    enum SquidError squid_write(void *hash, void *payload, unsigned long long size) 
+    {
+	auto path = ((Squid_snapshot::SquidFileHash*) hash)->to_path();
+	
+	switch (Squid_snapshot::global_squid->_write(path, payload, size)) {
+	case Squid_snapshot::Error::CreateFile:
+	    return SQUID_CREATE;
 
-// 	case Squid_snapshot::Error::WriteFile:
-// 	    return SQUID_WRITE;
+	case Squid_snapshot::Error::WriteFile:
+	    return SQUID_WRITE;
 
-// 	default:
-// 	    return SQUID_NONE;
-// 	}
-//     }
+	default:
+	    return SQUID_NONE;
+	}
+    }
 
     
-//     enum SquidError squid_read(char const *path, void *payload) 
-//     {
-// 	switch ( Squid_snapshot::global_squid->_read(path, payload) ) {
-// 	case Squid_snapshot::Error::ReadFile:
-// 	    return SQUID_READ;
+    enum SquidError squid_read(void *hash, void *payload) 
+    {
+	auto path = ((Squid_snapshot::SquidFileHash*) hash)->to_path();
+	
+	switch ( Squid_snapshot::global_squid->_read(path, payload) ) {
+	case Squid_snapshot::Error::ReadFile:
+	    return SQUID_READ;
 
-// 	default:
-// 	    return SQUID_NONE;
-// 	}
-//     }
+	default:
+	    return SQUID_NONE;
+	}
+    }
     
-//     enum SquidError squid_delete(char const *path) 
-//     {
-// 	// TODO
-// 	(void) path;
-// 	return SQUID_NONE;
-//     }
+    enum SquidError squid_delete(void *hash) 
+    {
+	Squid_snapshot::SquidFileHash* file = (Squid_snapshot::SquidFileHash*) hash;
 
-//     enum SquidError squid_test(void) 
-//     {
-// 	switch (Squid_snapshot::global_squid->_test()) {
-// 	case Squid_snapshot::Error::CreateFile:
-// 	    return SQUID_CREATE;
+	try {
+	    delete file;
+	} catch (...) {
+	    return SQUID_DELETE;
+	}
+	
+	return SQUID_NONE;
+    }
 
-// 	case Squid_snapshot::Error::WriteFile:
-// 	    return SQUID_WRITE;
+    enum SquidError squid_test(void) 
+    {
+	switch (Squid_snapshot::global_squid->_test()) {
+	case Squid_snapshot::Error::CreateFile:
+	    return SQUID_CREATE;
 
-// 	case Squid_snapshot::Error::ReadFile:
-// 	    return SQUID_READ;
+	case Squid_snapshot::Error::WriteFile:
+	    return SQUID_WRITE;
 
-// 	case Squid_snapshot::Error::CorruptedFile:
-// 	    return SQUID_CORRUPTED;
+	case Squid_snapshot::Error::ReadFile:
+	    return SQUID_READ;
 
-// 	default:
-// 	    return SQUID_NONE;
-// 	}
-//     }
-// }
+	case Squid_snapshot::Error::CorruptedFile:
+	    return SQUID_CORRUPTED;
+
+	default:
+	    return SQUID_NONE;
+	}
+    }
+}
 
 #endif // __cplusplus

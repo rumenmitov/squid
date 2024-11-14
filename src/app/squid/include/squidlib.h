@@ -12,27 +12,38 @@
  Squid File - determined by remaining chars in hash.
 */
 
-/* #ifndef __SQUIDLIB_H */
-/* #define __SQUIDLIB_H */
+#ifndef __SQUIDLIB_H
+#define __SQUIDLIB_H
 
-/* enum SquidError { */
-/*     SQUID_WRITE, */
-/*     SQUID_CREATE, */
-/*     SQUID_READ, */
-/*     SQUID_CORRUPTED, */
-/*     SQUID_NONE */
-/* }; */
 
-/* #define SQUID_ERROR_RED "\033[31m" */
-/* #define SQUID_ERROR_RESET "\033[0m" */
+#ifdef __cplusplus
+extern "C" {
+#endif
+    
+enum SquidError {
+    SQUID_WRITE,
+    SQUID_CREATE,
+    SQUID_READ,
+    SQUID_CORRUPTED,
+    SQUID_DELETE,
+    SQUID_NONE
+};
 
-/* #define SQUID_ERROR_FMT "[" SQUID_ERROR_RED "SQUID ERROR" SQUID_ERROR_RESET "] "  */
+#define SQUID_ERROR_RED "\033[31m"
+#define SQUID_ERROR_RESET "\033[0m"
 
-/* void squid_hash(char *me); */
-/* enum SquidError squid_write(char const *path, void *payload, unsigned long long size); */
-/* enum SquidError squid_read(char const *path, void *payload); */
-/* enum SquidError squid_delete(char const *path); */
+#define SQUID_ERROR_FMT "[" SQUID_ERROR_RED "SQUID ERROR" SQUID_ERROR_RESET "] "
 
-/* enum SquidError squid_test(void); */
 
-/* #endif // __SQUIDLIB_H */
+void squid_hash(void *hash);
+enum SquidError squid_write(void *hash, void *payload, unsigned long long size);
+enum SquidError squid_read(void *hash, void *payload);
+enum SquidError squid_delete(void *hash);
+
+enum SquidError squid_test(void);
+
+#ifdef __cplusplus
+}
+#endif
+    
+#endif // __SQUIDLIB_H

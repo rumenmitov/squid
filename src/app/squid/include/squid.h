@@ -40,11 +40,26 @@ namespace Squid_snapshot {
 
     static const unsigned int L1_SIZE = 16;
     static const unsigned int L2_SIZE = 256;
-    static const unsigned int L2_CAP  = 1000;
+
     
     static const unsigned int HASH_LEN = 32;
 
+    class L2_Dir
+    {
+	static const unsigned int CAPACITY  = 1000;
+
+    public:
+	L2_Dir(void);
+
+	unsigned int get_hash(void);
+	void return_hash(unsigned int);
+	
+    private:
+	unsigned int available_arr[CAPACITY];
+	unsigned int available_count = CAPACITY;
+    };
     
+
     struct SquidFileHash 
     {
 	unsigned int l1_dir;
@@ -52,7 +67,8 @@ namespace Squid_snapshot {
 	unsigned int file_id;
 
 	SquidFileHash(void);
-	SquidFileHash(unsigned int availability_matrix[16][256]);
+	SquidFileHash(L2_Dir availability_matrix[16][256]);
+	~SquidFileHash(void);
 	
 	Genode::Directory::Path to_path(void);
     };
@@ -76,7 +92,7 @@ namespace Squid_snapshot {
 	Directory _root_dir { _vfs_env };
 
 
-	unsigned int availability_matrix[Squid_snapshot::L1_SIZE][L2_SIZE];
+	L2_Dir availability_matrix[Squid_snapshot::L1_SIZE][L2_SIZE];
 
 
 	/**
@@ -89,11 +105,6 @@ namespace Squid_snapshot {
         * @brief Reads from squid file into payload buffer.
 	*/
 	enum Error _read(Path const &path, void *payload);
-
-	/**
-         * @brief Deletes squid file from filesystem.
-	 */
-	enum Error _delete(SquidFileHash &hash);
 
 
 	/**
