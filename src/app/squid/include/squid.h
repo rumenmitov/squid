@@ -206,13 +206,14 @@ namespace SquidSnapshot {
 	   The constructor should be called only AFTER SquidUtils
 	   has been initialized.
 	*/
-	Main(void) = delete;
-        Main(SquidUtils *);
+	Main() = delete;
+        Main(SquidSnapshot::SquidUtils*) {};
+	
 	
 	/**
 	 * @brief Responsible for managing file structure of snapshot.
 	 */
-	SnapshotRoot root_manager;
+	SnapshotRoot root_manager {};
 
 
 	/**

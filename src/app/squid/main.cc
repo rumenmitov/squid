@@ -2,18 +2,17 @@
 #include <squid.h>
 #include <benchmark.h>
 
-extern SquidSnapshot::SquidUtils *squidutils;
-extern SquidSnapshot::Main *global_squid;
+SquidSnapshot::SquidUtils *SquidSnapshot::squidutils = nullptr;
+SquidSnapshot::Main *SquidSnapshot::global_squid = nullptr;
 
 
 void Component::construct(Genode::Env &env)
 {
-
     static SquidSnapshot::SquidUtils local_squidutils { env };
-    squidutils = &local_squidutils;
+    SquidSnapshot::squidutils = &local_squidutils;
 
-    static SquidSnapshot::Main local_squid { squidutils };
-    global_squid = &local_squid;
+    static SquidSnapshot::Main local_squid { SquidSnapshot::squidutils };
+    SquidSnapshot::global_squid = &local_squid;
     
     
     Genode::log("testing squid...");
