@@ -36,7 +36,7 @@ void Component::construct(Genode::Env &env)
 	break;
 
     default:
-	Genode::log("passed.\n");
+	Genode::log("passed.");
 	break;
     }
 

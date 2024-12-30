@@ -8,49 +8,49 @@
 #include <base/stdint.h>
 
 
-static void* squid_malloc(Genode::size_t size) 
-{
-    Genode::size_t total_size = sizeof(Genode::size_t) + size;
+// static void* squid_malloc(Genode::size_t size) 
+// {
+//     Genode::size_t total_size = sizeof(Genode::size_t) + size;
 
-    auto alloc_res = SquidSnapshot::squidutils->_heap.try_alloc(total_size);
+//     auto alloc_res = SquidSnapshot::squidutils->_heap.try_alloc(total_size);
 
-    if (!alloc_res.ok()){
-        alloc_res.with_error([](Genode::Allocator::Alloc_error err){ Genode::error(err); });
-        return 0;
-    }
+//     if (!alloc_res.ok()){
+//         alloc_res.with_error([](Genode::Allocator::Alloc_error err){ Genode::error(err); });
+//         return 0;
+//     }
 
-    void* original_addr = nullptr;
+//     void* original_addr = nullptr;
 
-    alloc_res.with_result(
-        [&](void* addr){ original_addr = addr; }, 
-        [&](Genode::Allocator::Alloc_error err){ Genode::error(err); }
-    );
+//     alloc_res.with_result(
+//         [&](void* addr){ original_addr = addr; }, 
+//         [&](Genode::Allocator::Alloc_error err){ Genode::error(err); }
+//     );
 
-    // just to ensure it is safe
-    if (original_addr == nullptr){
-	Genode::error("malloc: addr = nullptr!!!");
-        return 0;
-    }
+//     // just to ensure it is safe
+//     if (original_addr == nullptr){
+// 	Genode::error("malloc: addr = nullptr!!!");
+//         return 0;
+//     }
 
-    // Writing the size
-    *((Genode::size_t *)original_addr) = size;
+//     // Writing the size
+//     *((Genode::size_t *)original_addr) = size;
 
-    Genode::size_t *adjusted_addr = ((Genode::size_t *)original_addr) + 1;
+//     Genode::size_t *adjusted_addr = ((Genode::size_t *)original_addr) + 1;
 
-    return (void *)adjusted_addr;
-}
+//     return (void *)adjusted_addr;
+// }
 
 
 static void squid_free(void* addr) 
 {
     if (addr == nullptr) return;
 
-    Genode::size_t *adjusted_addr = (Genode::size_t *)addr;
-    void *original_addr = (void *)(adjusted_addr - 1);
+    // Genode::size_t *adjusted_addr = (Genode::size_t *)addr;
+    // void *original_addr = (void *)(adjusted_addr - 1);
 
-    Genode::size_t size = *((Genode::size_t *)original_addr);
+    // Genode::size_t size = *((Genode::size_t *)original_addr);
 
-    SquidSnapshot::squidutils->_heap.free(addr, size);
+    SquidSnapshot::squidutils->_heap.free(addr, 0);
     addr = nullptr;
 }
 
@@ -61,7 +61,7 @@ namespace SquidSnapshot {
 	: capacity(capacity), freecount(capacity)
     {
 
-	freelist = (L1Dir *)squid_malloc(sizeof(L1Dir) * capacity);
+	freelist = (L1Dir *) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
         Genode::Directory::Path path = to_path();
 
@@ -78,7 +78,7 @@ namespace SquidSnapshot {
     SnapshotRoot::SnapshotRoot(const SnapshotRoot &other)
 	: capacity(other.capacity), freecount(other.freecount)
     {
-	freelist = (L1Dir*) squid_malloc(sizeof(L1Dir) * capacity);
+	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -104,7 +104,7 @@ namespace SquidSnapshot {
 	capacity = other.capacity;
 	freecount = other.freecount;
 	
-	freelist = (L1Dir*) squid_malloc(sizeof(L1Dir) * capacity);
+	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -132,6 +132,14 @@ namespace SquidSnapshot {
 
     bool SnapshotRoot::is_full(void) 
     {
+	freecount = L1_SIZE;
+	
+	for (unsigned int i = 0; i < capacity; i++) {
+	    if (freelist[i].is_full()) {
+		freecount--;
+	    }
+	}
+	
 	return freecount == 0;
     }
     
@@ -175,7 +183,7 @@ namespace SquidSnapshot {
     L1Dir::L1Dir(SnapshotRoot *parent, unsigned int l1, unsigned int capacity)
 	: capacity(capacity), freecount(capacity), l1_dir(l1), parent(parent)
     {
-	freelist = (L2Dir*) squid_malloc(sizeof(L2Dir) * capacity);
+	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -193,7 +201,7 @@ namespace SquidSnapshot {
     L1Dir::L1Dir(const L1Dir &other)
 	: capacity(other.capacity), freecount(other.freecount), l1_dir(other.l1_dir), parent(other.parent)
     {
-	freelist = (L2Dir*) squid_malloc(sizeof(L2Dir) * capacity);
+	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -222,7 +230,7 @@ namespace SquidSnapshot {
 	capacity = other.capacity;
 	freecount = other.freecount;
 	
-	freelist = (L2Dir*) squid_malloc(sizeof(L2Dir) * capacity);
+	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -254,6 +262,14 @@ namespace SquidSnapshot {
 
     bool L1Dir::is_full(void) 
     {
+	freecount = L1_SIZE;
+	
+	for (unsigned int i = 0; i < capacity; i++) {
+	    if (freelist[i].is_full()) {
+		freecount--;
+	    }
+	}
+	
 	return freecount == 0;
     }
 
@@ -264,7 +280,6 @@ namespace SquidSnapshot {
 
 	for (unsigned i = 0; i < capacity; i++) {
 	    if (!freelist[i].is_full()) {
-		freecount--;
 		return &freelist[i];
 	    }
 	}
@@ -284,7 +299,7 @@ namespace SquidSnapshot {
 	: capacity(capacity), freecount(capacity), l1_dir(l1), l2_dir(l2), parent(parent)
     {
 
-	freelist = (SquidFileHash *) squid_malloc(sizeof(SquidFileHash) * capacity);
+	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -302,7 +317,7 @@ namespace SquidSnapshot {
     L2Dir::L2Dir(const L2Dir &other)
 	: capacity(other.capacity), freecount(other.freecount), l1_dir(other.l1_dir), l2_dir(other.l2_dir), parent(other.parent)
     {
-	freelist = (SquidFileHash *) squid_malloc(sizeof(SquidFileHash) * capacity);
+	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -336,7 +351,7 @@ namespace SquidSnapshot {
 	capacity = other.capacity;
 	freecount = other.freecount;
 	
-	freelist = (SquidFileHash *) squid_malloc(sizeof(SquidFileHash) * capacity);
+	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
 
 	Genode::Directory::Path path = to_path();
 
@@ -374,8 +389,13 @@ namespace SquidSnapshot {
     
     SquidFileHash* L2Dir::get_entry(void)
     {
-	if (is_full()) return nullptr;
-	
+	if (is_full()) {
+	    Genode::log("l2 full");
+	    return nullptr;
+	}
+      
+		
+
 	// TODO implement as ring buffer with memory
 	for (unsigned int i = 0; i < capacity; i++) {
 	    Genode::Directory::Path hash = freelist[i].to_path();
@@ -383,15 +403,18 @@ namespace SquidSnapshot {
 	    if (!SquidSnapshot::squidutils->_root_dir.file_exists(hash)) {
 		freecount--;
 
-		try {
-		    New_file file(SquidSnapshot::squidutils->_root_dir, hash);
+                try {
+                  New_file file(SquidSnapshot::squidutils->_root_dir, hash);
 
-		    if ( file.append(0, 1) != New_file::Append_result::OK )
-			throw Error::WriteFile;
+		  if ( file.append("", 0) != New_file::Append_result::OK )
+		      throw Error::WriteFile;
+
+		  Genode::log("acquired ", hash);
+
 		  
 		} catch (New_file::Create_failed) {
 		    throw Error::CreateFile;
-		}
+                }
 
 		return &freelist[i];
 	    }
@@ -507,7 +530,7 @@ namespace SquidSnapshot {
 
 	SquidFileHash *hash = global_squid->root_manager.get_hash();
 	if (hash == nullptr) return Error::OutOfHashes;
-	
+
 	switch (Main::_write(hash->to_path(), (void*) message, sizeof(message) / sizeof(char))) {
 	case Error::CreateFile:
 	    return Error::CreateFile;
@@ -518,9 +541,9 @@ namespace SquidSnapshot {
 	default:
 	    break;
 	}
-	
 
-	char *echo = (char*) squid_malloc(sizeof(char) * 20);
+
+        char *echo = (char*) SquidSnapshot::squidutils->_heap.alloc(sizeof(char) * 20);
 	
 	switch (SquidSnapshot::global_squid->_read(hash->to_path(), (void*) echo)) {
 	case Error::ReadFile:
