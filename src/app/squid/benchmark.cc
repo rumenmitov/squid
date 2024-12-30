@@ -1,5 +1,5 @@
 #include <benchmark.h>
-#include <squid.h>
+#include <squidlib.h>
 
 void squid_benchmark(void)
 {
@@ -11,8 +11,11 @@ void squid_benchmark(void)
     
     for (int i = 0; i < 10000; i++) {
 	Genode::log("benchmark ", i);
+
+	char *filehash = nullptr;
+	squid_hash((void**) &filehash);
 	
-	Squid_snapshot::SquidFileHash hash(Squid_snapshot::global_squid->availability_matrix);
-	Squid_snapshot::global_squid->_write(hash.to_path(), (void*) &obj, sizeof(obj));
+	if (squid_write(filehash, (void*) &obj, sizeof(obj)) != SQUID_NONE)
+	    Genode::error("ERROR: write: ", i);
     }
 }

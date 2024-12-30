@@ -35,7 +35,7 @@ enum SquidError {
 #define SQUID_ERROR_FMT "[" SQUID_ERROR_RED "SQUID ERROR" SQUID_ERROR_RESET "] "
 
 
-void squid_hash(void *hash);
+void squid_hash(void **hash);
 enum SquidError squid_write(void *hash, void *payload, unsigned long long size);
 enum SquidError squid_read(void *hash, void *payload);
 enum SquidError squid_delete(void *hash);

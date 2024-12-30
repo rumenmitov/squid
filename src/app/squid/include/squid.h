@@ -3,12 +3,19 @@
  * @Date 2024-09-07
 
  squid.h provides an API to snapshot data to the disk.
- It is organized as a Radix Tree with an Upper Directory (L1), and a
+ It is organized as a trie with an Upper Directory (L1), and a
  Lower Directory (L2).
 
  L1         - determined by the first two chars of the hash.
  L2         - determined by the next pair of chars of the hash.
  Squid File - determined by remaining chars in hash.
+
+ All snapshots are stored in the root directory SquidSnapshot::SQUIDROOT,
+ which will be referred to as <squidroot> from now on.
+
+ An ongoing snapshot is contained within the <squidroot>/current directory.
+ Completed snapshots are stored within /<squidroot>/<timestamp>, where <timestamp>
+ is a unix timestamp of when the snapshot was completed.
 */
 
 #ifndef __SQUID_H
@@ -24,13 +31,15 @@
 #include <vfs/file_system_factory.h>
 #include <base/buffered_output.h>
 
-namespace Squid_snapshot {
+
+namespace SquidSnapshot {
     using namespace Genode;
 
     /**
      * @brief Error types associated with Squid Cache.
      */
     enum Error {
+	OutOfHashes,
 	WriteFile,
 	ReadFile,
 	CreateFile,
@@ -38,61 +47,172 @@ namespace Squid_snapshot {
 	None
     };
 
-    static const unsigned int L1_SIZE = 16;
-    static const unsigned int L2_SIZE = 256;
-
+    /**
+     * @brief The root directory containing all snapshots.
+     */
+    const static char SQUIDROOT[] = "squid-root";
     
-    static const unsigned int HASH_LEN = 32;
 
-    class L2_Dir
+    /**
+     * @brief Amount of entries in each level of the snapshot hierarchy.
+     */
+    static const unsigned int ROOT_SIZE = 16;
+    static const unsigned int L1_SIZE 	= 256;
+    static const unsigned int L2_SIZE 	= 1000;
+
+
+    struct Main;
+    class SnapshotRoot;
+    class L1Dir;
+    class L2Dir;
+    class SquidFileHash;
+
+    /**
+     * @brief Manages L1 directories in the snapshot root.
+     */
+    class SnapshotRoot
     {
-	static const unsigned int CAPACITY  = 1000;
+    protected:
+	unsigned int capacity;
+	L1Dir *freelist = nullptr;
+	unsigned int freecount;
 
     public:
-	L2_Dir(void);
-
-	unsigned int get_hash(void);
-	void return_hash(unsigned int);
+	SnapshotRoot(unsigned int capacity = ROOT_SIZE);
+	SnapshotRoot(const SnapshotRoot&);
 	
-    private:
-	unsigned int available_arr[CAPACITY];
-	unsigned int available_count = CAPACITY;
-    };
-    
+	~SnapshotRoot(void);
 
+	SnapshotRoot& operator=(const SnapshotRoot&);
+	
+
+	Genode::Directory::Path to_path(void);
+	bool is_full(void);
+
+	L1Dir* get_entry(void);
+	void return_entry(void);
+
+	SquidFileHash* get_hash(void);
+    };
+
+
+    /**
+     * @brief Manages L2 directories in an L1 directory instance.
+     */
+    class L1Dir 
+    {
+    private:
+	unsigned int capacity;
+	L2Dir *freelist = nullptr;
+	unsigned int freecount;
+
+	unsigned int l1_dir;
+
+	SnapshotRoot *parent;
+
+    public:
+	L1Dir(SnapshotRoot*, unsigned int l1, unsigned int capacity = L1_SIZE);
+	L1Dir(const L1Dir&);
+	
+	~L1Dir(void);
+
+	L1Dir& operator=(const L1Dir&);
+
+	Genode::Directory::Path to_path(void);
+	bool is_full(void);
+
+	L2Dir* get_entry(void);
+	void return_entry(void);
+    };
+
+
+    /**
+     * @brief Manages free hashes in an L2 directory instance.
+     */
+    class L2Dir 
+    {
+    private:
+	unsigned int capacity;
+	SquidFileHash *freelist = nullptr;
+	unsigned int freecount;
+
+	unsigned int l1_dir;
+	unsigned int l2_dir;
+
+	L1Dir *parent;
+
+    public:
+	L2Dir(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
+	L2Dir(const L2Dir&);
+	
+	~L2Dir(void);
+
+	L2Dir& operator=(const L2Dir&);
+
+	Genode::Directory::Path to_path(void);
+	bool is_full(void);
+
+	SquidFileHash* get_entry(void);
+	void return_entry(void);
+    };
+
+
+    /**
+     * @brief Represents squid hash of a file. Comprised of L1, L2 directories and the file id.
+     */
     struct SquidFileHash 
     {
 	unsigned int l1_dir;
 	unsigned int l2_dir;
 	unsigned int file_id;
 
-	SquidFileHash(void);
-	SquidFileHash(L2_Dir availability_matrix[16][256]);
-	~SquidFileHash(void);
+	L2Dir *parent;
+
+        SquidFileHash(L2Dir *, unsigned int, unsigned int, unsigned int);
+	SquidFileHash(const SquidFileHash&);
+
+        ~SquidFileHash(void);
+
+	SquidFileHash& operator=(const SquidFileHash&);
 	
 	Genode::Directory::Path to_path(void);
+    };
+
+    
+    typedef Directory::Path Path;
+
+
+    struct SquidUtils
+    {
+	Env &_env;
+        Main(Env &env) : _env(env) 
+	{};
+	
+	Heap _heap{_env.ram(), _env.rm()};
+
+        Attached_rom_dataspace _config{_env, "config"};
+
+        Vfs::Global_file_system_factory _fs_factory{_heap};
+
+        Vfs::Simple_env _vfs_env{_env, _heap, _config.xml().sub_node("vfs")};
+	
+	Directory _root_dir { _vfs_env };
     };
 
 
     struct Main
     {
-	Env &_env;
-	Main(Env &env);
-
-	Heap _heap { _env.ram(), _env.rm() };
-
-	Attached_rom_dataspace _config { _env, "config" };
-
-	Vfs::Global_file_system_factory _fs_factory { _heap };
-
-	Vfs::Simple_env _vfs_env { _env, _heap, _config.xml().sub_node("vfs") };
-
-	typedef Directory::Path Path;
-
-	Directory _root_dir { _vfs_env };
-
-
-	L2_Dir availability_matrix[Squid_snapshot::L1_SIZE][L2_SIZE];
+	/* INFO
+	   The constructor should be called only AFTER SquidUtils
+	   has been initialized.
+	*/
+	Main(void) = delete;
+        Main(SquidUtils *);
+	
+	/**
+	 * @brief Responsible for managing file structure of snapshot.
+	 */
+	SnapshotRoot root_manager { *this };
 
 
 	/**
@@ -114,7 +234,8 @@ namespace Squid_snapshot {
 
     };
 
-    extern Main *global_squid;
+    extern static SquidUtils *squidutils;
+    extern static Main *global_squid;
 };
 
 
