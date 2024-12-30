@@ -12,7 +12,7 @@ void Component::construct(Genode::Env &env)
     static SquidSnapshot::SquidUtils local_squidutils { env };
     squidutils = &local_squidutils;
 
-    static SquidSnapshot::Main local_squid;
+    static SquidSnapshot::Main local_squid { squidutils };
     global_squid = &local_squid;
     
     

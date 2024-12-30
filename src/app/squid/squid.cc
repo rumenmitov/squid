@@ -3,6 +3,7 @@
 
 #include <os/vfs.h>
 #include <util/string.h>
+#include <util/misc_math.h>
 #include <format/snprintf.h>
 #include <base/stdint.h>
 
@@ -64,8 +65,8 @@ namespace SquidSnapshot {
 
         Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
         }
 
@@ -81,8 +82,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-        squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+        SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -107,8 +108,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -178,8 +179,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -196,8 +197,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -225,8 +226,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -241,8 +242,8 @@ namespace SquidSnapshot {
     Genode::Directory::Path L1Dir::to_path(void) 
     {
 
-	unsigned int digits = (log(ROOT_SIZE) / log(16)) + 1;
-	unsigned int total_chars = strlen("//current/") + strlen(SQUIDROOT) + digits;
+	Genode::size_t digits = (log2(ROOT_SIZE) / log2(16)) + 1;
+	Genode::size_t total_chars = strlen("//current/") + strlen(SQUIDROOT) + digits;
       
 	char path[total_chars];
 	Format::snprintf(path, total_chars, "/%s/current/%x", SQUIDROOT, l1_dir);
@@ -287,8 +288,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -305,8 +306,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -339,8 +340,8 @@ namespace SquidSnapshot {
 
 	Genode::Directory::Path path = to_path();
 
-	squidutils->_root_dir.create_sub_directory(path);
-	if (!squidutils->_root_dir.directory_exists(path)) {
+	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
@@ -354,9 +355,9 @@ namespace SquidSnapshot {
 
     Genode::Directory::Path L2Dir::to_path(void) 
     {
-	unsigned int root_digits = (log(ROOT_SIZE) / log(16)) + 1;
-      	unsigned int l1_digits = (log(L1_SIZE) / log(16)) + 1;
-	unsigned int total_chars = strlen("//current//") + strlen(SQUIDROOT) + root_digits + l1_digits;
+	Genode::size_t root_digits = (log2(ROOT_SIZE) / log2(16)) + 1;
+      	Genode::size_t l1_digits = (log2(L1_SIZE) / log2(16)) + 1;
+	Genode::size_t total_chars = strlen("//current//") + strlen(SQUIDROOT) + root_digits + l1_digits;
 
 	char path[total_chars];
 	Format::snprintf(path, total_chars, "/%s/current/%x/%x", SQUIDROOT, l1_dir, l2_dir);
@@ -379,11 +380,11 @@ namespace SquidSnapshot {
 	for (unsigned int i = 0; i < capacity; i++) {
 	    Genode::Directory::Path hash = freelist[i].to_path();
 	    
-	    if (!squidutils->_root_dir.file_exists(hash)) {
+	    if (!SquidSnapshot::squidutils->_root_dir.file_exists(hash)) {
 		freecount--;
 
 		try {
-		    New_file file(squidutils->_root_dir, hash);
+		    New_file file(SquidSnapshot::squidutils->_root_dir, hash);
 
 		    if ( file.append(0, 1) != New_file::Append_result::OK )
 			throw Error::WriteFile;
@@ -441,10 +442,10 @@ namespace SquidSnapshot {
 
     Genode::Directory::Path SquidFileHash::to_path(void) 
     {
-       	unsigned int root_digits = (log(ROOT_SIZE) / log(16)) + 1;
-        unsigned int l1_digits = (log(L1_SIZE) / log(16)) + 1;
-	unsigned int l2_digits = (log(L2_SIZE) / log(16)) + 1;
-	unsigned int total_chars = strlen("//current///") + strlen(SQUIDROOT) + root_digits + l1_digits + l2_digits;
+       	Genode::size_t root_digits = (log2(ROOT_SIZE) / log2(16)) + 1;
+        Genode::size_t l1_digits = (log2(L1_SIZE) / log2(16)) + 1;
+	Genode::size_t l2_digits = (log2(L2_SIZE) / log2(16)) + 1;
+	Genode::size_t total_chars = strlen("//current///") + strlen(SQUIDROOT) + root_digits + l1_digits + l2_digits;
 
 	char hash[total_chars];
 
@@ -461,7 +462,7 @@ namespace SquidSnapshot {
     Error Main::_write(Path const &path, void *payload, size_t size) 
     {
 	try {
-	    New_file file(squidutils->_root_dir, path);
+	    New_file file(SquidSnapshot::squidutils->_root_dir, path);
 
 	    if ( file.append((const char *) payload, size) != New_file::Append_result::OK )
 		return Error::WriteFile;
@@ -476,7 +477,7 @@ namespace SquidSnapshot {
 	  
     Error Main::_read(Path const &path, void *payload) 
     {
-	Readonly_file file(squidutils->_root_dir, path);
+	Readonly_file file(SquidSnapshot::squidutils->_root_dir, path);
 	Readonly_file::At at { 0 };
 
 	Byte_range_ptr buffer((char*)payload, 1024);

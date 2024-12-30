@@ -185,7 +185,7 @@ namespace SquidSnapshot {
     struct SquidUtils
     {
 	Env &_env;
-        Main(Env &env) : _env(env) 
+        SquidUtils(Env &env) : _env(env) 
 	{};
 	
 	Heap _heap{_env.ram(), _env.rm()};
@@ -212,7 +212,7 @@ namespace SquidSnapshot {
 	/**
 	 * @brief Responsible for managing file structure of snapshot.
 	 */
-	SnapshotRoot root_manager { *this };
+	SnapshotRoot root_manager;
 
 
 	/**
@@ -234,8 +234,8 @@ namespace SquidSnapshot {
 
     };
 
-    extern static SquidUtils *squidutils;
-    extern static Main *global_squid;
+    extern SquidUtils *squidutils;
+    extern Main *global_squid;
 };
 
 
