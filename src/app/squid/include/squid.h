@@ -27,10 +27,13 @@
 #include <base/sleep.h>
 #include <base/attached_rom_dataspace.h>
 #include <base/heap.h>
+#include <util/bit_array.h>
 #include <os/vfs.h>
 #include <vfs/file_system_factory.h>
 #include <base/buffered_output.h>
 
+#define BITS_PER_WORD sizeof(addr_t) * 8UL
+#define WORD_ALIGN(_BITS) (((_BITS) + BITS_PER_WORD - 1) / BITS_PER_WORD) * BITS_PER_WORD
 
 namespace SquidSnapshot {
     using namespace Genode;
@@ -56,9 +59,9 @@ namespace SquidSnapshot {
     /**
      * @brief Amount of entries in each level of the snapshot hierarchy.
      */
-    static const unsigned int ROOT_SIZE = 16;
-    static const unsigned int L1_SIZE 	= 256;
-    static const unsigned int L2_SIZE 	= 1000;
+    static const unsigned int ROOT_SIZE = WORD_ALIGN(16);
+    static const unsigned int L1_SIZE 	= WORD_ALIGN(256);
+    static const unsigned int L2_SIZE 	= WORD_ALIGN(1000);
 
 
     struct Main;
@@ -74,8 +77,9 @@ namespace SquidSnapshot {
     {
     protected:
 	unsigned int capacity;
-	L1Dir *freelist = nullptr;
-	unsigned int freecount;
+        L1Dir *freelist = nullptr;
+	unsigned int freeindex;
+	Genode::Bit_array<ROOT_SIZE> freemask;
 
     public:
 	SnapshotRoot(unsigned int capacity = ROOT_SIZE);
@@ -90,7 +94,7 @@ namespace SquidSnapshot {
 	bool is_full(void);
 
 	L1Dir* get_entry(void);
-	void return_entry(void);
+	void return_entry(unsigned int);
 
 	SquidFileHash* get_hash(void);
     };
@@ -103,8 +107,9 @@ namespace SquidSnapshot {
     {
     private:
 	unsigned int capacity;
-	L2Dir *freelist = nullptr;
-	unsigned int freecount;
+        L2Dir *freelist = nullptr;
+	unsigned int freeindex;
+	Genode::Bit_array<L1_SIZE> freemask;
 
 	unsigned int l1_dir;
 
@@ -122,7 +127,7 @@ namespace SquidSnapshot {
 	bool is_full(void);
 
 	L2Dir* get_entry(void);
-	void return_entry(void);
+	void return_entry(unsigned int);
     };
 
 

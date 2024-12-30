@@ -8,61 +8,15 @@
 #include <base/stdint.h>
 
 
-// static void* squid_malloc(Genode::size_t size) 
-// {
-//     Genode::size_t total_size = sizeof(Genode::size_t) + size;
-
-//     auto alloc_res = SquidSnapshot::squidutils->_heap.try_alloc(total_size);
-
-//     if (!alloc_res.ok()){
-//         alloc_res.with_error([](Genode::Allocator::Alloc_error err){ Genode::error(err); });
-//         return 0;
-//     }
-
-//     void* original_addr = nullptr;
-
-//     alloc_res.with_result(
-//         [&](void* addr){ original_addr = addr; }, 
-//         [&](Genode::Allocator::Alloc_error err){ Genode::error(err); }
-//     );
-
-//     // just to ensure it is safe
-//     if (original_addr == nullptr){
-// 	Genode::error("malloc: addr = nullptr!!!");
-//         return 0;
-//     }
-
-//     // Writing the size
-//     *((Genode::size_t *)original_addr) = size;
-
-//     Genode::size_t *adjusted_addr = ((Genode::size_t *)original_addr) + 1;
-
-//     return (void *)adjusted_addr;
-// }
-
-
-static void squid_free(void* addr) 
-{
-    if (addr == nullptr) return;
-
-    // Genode::size_t *adjusted_addr = (Genode::size_t *)addr;
-    // void *original_addr = (void *)(adjusted_addr - 1);
-
-    // Genode::size_t size = *((Genode::size_t *)original_addr);
-
-    SquidSnapshot::squidutils->_heap.free(addr, 0);
-    addr = nullptr;
-}
-
-
 namespace SquidSnapshot {
 
     SnapshotRoot::SnapshotRoot(unsigned int capacity)
-	: capacity(capacity), freecount(capacity)
+	: capacity(capacity), freeindex(0), freemask()
     {
 
 	freelist = (L1Dir *) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
-
+        freemask.set(0, ROOT_SIZE);
+	
         Genode::Directory::Path path = to_path();
 
 	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
@@ -76,7 +30,7 @@ namespace SquidSnapshot {
     }
 
     SnapshotRoot::SnapshotRoot(const SnapshotRoot &other)
-	: capacity(other.capacity), freecount(other.freecount)
+	: capacity(other.capacity), freeindex(other.freeindex), freemask(other.freemask)
     {
 	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
@@ -95,14 +49,15 @@ namespace SquidSnapshot {
 
     SnapshotRoot::~SnapshotRoot(void)
     {
-	squid_free(freelist);
+	SquidSnapshot::squidutils->_heap.free(freelist, 0);
     }
 
 
     SnapshotRoot& SnapshotRoot::operator=(const SnapshotRoot &other)
     {
 	capacity = other.capacity;
-	freecount = other.freecount;
+	freeindex = other.freeindex;
+	freemask(other.freemask);
 	
 	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
@@ -132,15 +87,7 @@ namespace SquidSnapshot {
 
     bool SnapshotRoot::is_full(void) 
     {
-	freecount = L1_SIZE;
-	
-	for (unsigned int i = 0; i < capacity; i++) {
-	    if (freelist[i].is_full()) {
-		freecount--;
-	    }
-	}
-	
-	return freecount == 0;
+	return freemask.get(0, ROOT_SIZE);
     }
     
     
@@ -148,10 +95,11 @@ namespace SquidSnapshot {
     {
 	if (is_full()) return nullptr;
 
-	for (unsigned i = 0; i < capacity; i++) {
-	    if (!freelist[i].is_full()) {
-		freecount--;
-		return &freelist[i];
+	for (;; freeindex = (freeindex + 1) % ROOT_SIZE) {
+	    if (!freelist[freeindex].is_full()) {
+		return &freelist[freeindex];
+            } else {
+		freemask.clear(freeindex, 1);
 	    }
 	}
 
@@ -160,10 +108,9 @@ namespace SquidSnapshot {
     }
 
 
-    void SnapshotRoot::return_entry(void) 
+    void SnapshotRoot::return_entry(unsigned int index) 
     {
-	if (freecount == capacity) return;
-	freecount++;
+	freemask.set(index, 1);
     }
 
 
@@ -181,10 +128,11 @@ namespace SquidSnapshot {
 
 
     L1Dir::L1Dir(SnapshotRoot *parent, unsigned int l1, unsigned int capacity)
-	: capacity(capacity), freecount(capacity), l1_dir(l1), parent(parent)
+	: capacity(capacity), freeindex(0), freemask(), l1_dir(l1), parent(parent)
     {
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
-
+	freemask.set(0, L1_SIZE);
+	
 	Genode::Directory::Path path = to_path();
 
 	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
@@ -199,7 +147,9 @@ namespace SquidSnapshot {
 
 
     L1Dir::L1Dir(const L1Dir &other)
-	: capacity(other.capacity), freecount(other.freecount), l1_dir(other.l1_dir), parent(other.parent)
+        : capacity(other.capacity), freeindex(other.freeindex),
+          freemask(other.freemask),
+          l1_dir(other.l1_dir), parent(other.parent)
     {
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
@@ -218,8 +168,8 @@ namespace SquidSnapshot {
 
     L1Dir::~L1Dir(void)
     {
-	squid_free(freelist);
-	parent->return_entry();
+	SquidSnapshot::squidutils->_heap.free(freelist, 0);
+	parent->return_entry(l1_dir);
     }
 
 
@@ -228,7 +178,8 @@ namespace SquidSnapshot {
 	parent = other.parent;
 	l1_dir = other.l1_dir;
 	capacity = other.capacity;
-	freecount = other.freecount;
+        freeindex = other.freeindex;
+	freemask(other.freemask);
 	
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
@@ -262,15 +213,7 @@ namespace SquidSnapshot {
 
     bool L1Dir::is_full(void) 
     {
-	freecount = L1_SIZE;
-	
-	for (unsigned int i = 0; i < capacity; i++) {
-	    if (freelist[i].is_full()) {
-		freecount--;
-	    }
-	}
-	
-	return freecount == 0;
+	return freemask.get(0, L1_SIZE);
     }
 
     
@@ -278,20 +221,22 @@ namespace SquidSnapshot {
     {
 	if (is_full()) return nullptr;
 
-	for (unsigned i = 0; i < capacity; i++) {
-	    if (!freelist[i].is_full()) {
-		return &freelist[i];
+	for (;; freeindex = (freeindex + 1) % L1_SIZE) {
+	    if (!freelist[freeindex].is_full()) {
+		return &freelist[freeindex];
+            } else {
+		freemask.clear(freeindex, 1);
 	    }
-	}
+        }
+	
 	Genode::error(SQUID_ERROR_FMT "This state should not be reacheable!");
 	return nullptr;
     }
 
 
-    void L1Dir::return_entry(void) 
+    void L1Dir::return_entry(unsigned int index) 
     {
-	if (freecount == capacity) return;
-	freecount++;
+	freemask.set(index, 1);
     }
 
 
@@ -338,8 +283,8 @@ namespace SquidSnapshot {
 	   Used SquidFileHashes will be deleted from disk
 	   when the corresponding SquidFileHash's destructor is called.
 	*/
-	squid_free(freelist);
-	parent->return_entry();
+	SquidSnapshot::squidutils->_heap.free(freelist, 0);
+	parent->return_entry(l2_dir);
     }
 
 
@@ -390,7 +335,6 @@ namespace SquidSnapshot {
     SquidFileHash* L2Dir::get_entry(void)
     {
 	if (is_full()) {
-	    Genode::log("l2 full");
 	    return nullptr;
 	}
       
@@ -409,9 +353,6 @@ namespace SquidSnapshot {
 		  if ( file.append("", 0) != New_file::Append_result::OK )
 		      throw Error::WriteFile;
 
-		  Genode::log("acquired ", hash);
-
-		  
 		} catch (New_file::Create_failed) {
 		    throw Error::CreateFile;
                 }
