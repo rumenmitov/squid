@@ -13,9 +13,10 @@ namespace SquidSnapshot {
     SnapshotRoot::SnapshotRoot(unsigned int capacity)
 	: capacity(capacity), freeindex(0), freemask()
     {
+	Genode::log("ROOT_SIZE:", ROOT_SIZE);
 
 	freelist = (L1Dir *) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
-        freemask.set(0, ROOT_SIZE);
+	freemask.set(0, ROOT_SIZE);
 	
         Genode::Directory::Path path = to_path();
 
@@ -56,8 +57,7 @@ namespace SquidSnapshot {
     SnapshotRoot& SnapshotRoot::operator=(const SnapshotRoot &other)
     {
 	capacity = other.capacity;
-	freeindex = other.freeindex;
-	freemask(other.freemask);
+        freeindex = other.freeindex;
 	
 	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
 
@@ -108,7 +108,7 @@ namespace SquidSnapshot {
     }
 
 
-    void SnapshotRoot::return_entry(unsigned int index) 
+    void SnapshotRoot::return_entry(unsigned int index)
     {
 	freemask.set(index, 1);
     }
@@ -132,7 +132,7 @@ namespace SquidSnapshot {
     {
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 	freemask.set(0, L1_SIZE);
-	
+
 	Genode::Directory::Path path = to_path();
 
 	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
@@ -169,7 +169,6 @@ namespace SquidSnapshot {
     L1Dir::~L1Dir(void)
     {
 	SquidSnapshot::squidutils->_heap.free(freelist, 0);
-	parent->return_entry(l1_dir);
     }
 
 
@@ -179,7 +178,6 @@ namespace SquidSnapshot {
 	l1_dir = other.l1_dir;
 	capacity = other.capacity;
         freeindex = other.freeindex;
-	freemask(other.freemask);
 	
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
 
@@ -234,7 +232,7 @@ namespace SquidSnapshot {
     }
 
 
-    void L1Dir::return_entry(unsigned int index) 
+    void L1Dir::return_entry(unsigned int index)
     {
 	freemask.set(index, 1);
     }
@@ -284,7 +282,6 @@ namespace SquidSnapshot {
 	   when the corresponding SquidFileHash's destructor is called.
 	*/
 	SquidSnapshot::squidutils->_heap.free(freelist, 0);
-	parent->return_entry(l2_dir);
     }
 
 
@@ -387,7 +384,6 @@ namespace SquidSnapshot {
     
     SquidFileHash::~SquidFileHash(void) 
     {
-	parent->return_entry();
     }
 
 

@@ -33,7 +33,7 @@
 #include <base/buffered_output.h>
 
 #define BITS_PER_WORD sizeof(addr_t) * 8UL
-#define WORD_ALIGN(_BITS) (((_BITS) + BITS_PER_WORD - 1) / BITS_PER_WORD) * BITS_PER_WORD
+#define WORD_ALIGN(_BITS) (BITS_PER_WORD) - (_BITS % (BITS_PER_WORD)) + _BITS
 
 namespace SquidSnapshot {
     using namespace Genode;

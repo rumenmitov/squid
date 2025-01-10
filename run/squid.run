@@ -90,8 +90,8 @@ append config {
  	</start>
 	
 
-	<start name="squid" caps="450">
-		<resource name="RAM" quantum="700M"/>
+	<start name="squid" caps="2000">
+		<resource name="RAM" quantum="2G"/>
 		<config>
 			<large seek="yes"/>
 			<vfs>
