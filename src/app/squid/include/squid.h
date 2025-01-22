@@ -81,14 +81,14 @@ namespace SquidSnapshot {
 	unsigned int freeindex;
 	Genode::Bit_array<ROOT_SIZE> freemask;
 
+	SnapshotRoot(const SnapshotRoot&) = delete;
+	SnapshotRoot& operator=(const SnapshotRoot&) = delete;
+
     public:
-	SnapshotRoot(unsigned int capacity = ROOT_SIZE);
-	SnapshotRoot(const SnapshotRoot&);
-	
+	SnapshotRoot();
 	~SnapshotRoot(void);
 
-	SnapshotRoot& operator=(const SnapshotRoot&);
-	
+	void init(unsigned int capacity = ROOT_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
@@ -113,15 +113,17 @@ namespace SquidSnapshot {
 
 	unsigned int l1_dir;
 
-	SnapshotRoot *parent;
+        SnapshotRoot *parent;
+
+	L1Dir(const L1Dir&) = delete;
+	L1Dir &operator= (const L1Dir &) = delete;
+
 
     public:
-	L1Dir(SnapshotRoot*, unsigned int l1, unsigned int capacity = L1_SIZE);
-	L1Dir(const L1Dir&);
-	
+	L1Dir();
 	~L1Dir(void);
 
-	L1Dir& operator=(const L1Dir&);
+	void init(SnapshotRoot*, unsigned int, unsigned int capacity = L1_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
@@ -144,15 +146,16 @@ namespace SquidSnapshot {
 	unsigned int l1_dir;
 	unsigned int l2_dir;
 
-	L1Dir *parent;
+        L1Dir *parent;
+
+	L2Dir(const L2Dir&) = delete;
+        L2Dir &operator= (const L2Dir &) = delete;
 
     public:
-	L2Dir(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
-	L2Dir(const L2Dir&);
-	
+	L2Dir();
 	~L2Dir(void);
 
-	L2Dir& operator=(const L2Dir&);
+	void init(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);

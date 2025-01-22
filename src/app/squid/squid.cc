@@ -10,40 +10,10 @@
 
 namespace SquidSnapshot {
 
-    SnapshotRoot::SnapshotRoot(unsigned int capacity)
-	: capacity(capacity), freeindex(0), freemask()
+    SnapshotRoot::SnapshotRoot()
+	: capacity(ROOT_SIZE), freeindex(0), freemask()
     {
-	freelist = (L1Dir *) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
-        freemask.set (0, ROOT_SIZE);
-	
-        Genode::Directory::Path path = to_path();
-
-	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-        }
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = L1Dir (this, i, L1_SIZE);
-	    Genode::log("l1 dir created: ", i);
-	}
-    }
-
-    SnapshotRoot::SnapshotRoot(const SnapshotRoot &other)
-	: capacity(other.capacity), freeindex(other.freeindex), freemask(other.freemask)
-    {
-	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
-
-	Genode::Directory::Path path = to_path();
-
-        SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-	}
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = other.freelist[i];
-	}
+	init();
     }
 
 
@@ -53,26 +23,24 @@ namespace SquidSnapshot {
     }
 
 
-    SnapshotRoot& SnapshotRoot::operator=(const SnapshotRoot &other)
+    void SnapshotRoot::init(unsigned int capacity)
     {
-	capacity = other.capacity;
-        freeindex = other.freeindex;
-	
-	freelist = (L1Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L1Dir) * capacity);
-	freemask.set(0, ROOT_SIZE);
-	
-	Genode::Directory::Path path = to_path();
+	this->capacity = capacity;
+	this->freeindex = 0;
+        this->freelist = (L1Dir *)SquidSnapshot::squidutils->_heap.alloc (sizeof (L1Dir) * capacity);
+	this->freemask.set (0, ROOT_SIZE);
+
+        Genode::Directory::Path path = to_path();
 
 	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
 	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
 	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
 	}
 
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = L1Dir(this, i, L1_SIZE);
+        for (unsigned int i = 0; i < capacity; i++) {
+	    freelist[i].init(this, i, L1_SIZE);
+	    Genode::log("l1 dir created: ", i);
 	}
-
-	return *this;
     }
     
 
@@ -127,44 +95,11 @@ namespace SquidSnapshot {
     
 
 
-    L1Dir::L1Dir(SnapshotRoot *parent, unsigned int l1, unsigned int capacity)
-	: capacity(capacity), freeindex(0), freemask(), l1_dir(l1), parent(parent)
+    L1Dir::L1Dir()
+	: capacity(L1_SIZE), freeindex(0), freemask(), l1_dir(0), parent(nullptr)
     {
-	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
-	freemask.set(0, L1_SIZE);
-	
-	Genode::Directory::Path path = to_path();
-
-	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-	}
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = L2Dir (this, l1_dir, i, L2_SIZE);
-        }
     }
 
-
-    L1Dir::L1Dir(const L1Dir &other)
-        : capacity(other.capacity), freeindex(other.freeindex),
-          freemask(other.freemask),
-          l1_dir(other.l1_dir), parent(other.parent)
-    {
-	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
-
-	Genode::Directory::Path path = to_path();
-
-	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-	}
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = other.freelist[i];
-	}
-    }
-    
 
     L1Dir::~L1Dir(void)
     {
@@ -172,15 +107,14 @@ namespace SquidSnapshot {
     }
 
 
-    L1Dir& L1Dir::operator=(const L1Dir &other)
+    void L1Dir::init(SnapshotRoot *parent, unsigned int l1, unsigned int capacity) 
     {
-	parent = other.parent;
-	l1_dir = other.l1_dir;
-	capacity = other.capacity;
-        freeindex = other.freeindex;
+	this->parent = parent;
+        this->l1_dir = l1;
+	this->capacity = capacity;
 	
 	freelist = (L2Dir*) SquidSnapshot::squidutils->_heap.alloc(sizeof(L2Dir) * capacity);
-        freemask.set (0, L1_SIZE);
+	freemask.set(0, L1_SIZE);	
 	
 	Genode::Directory::Path path = to_path();
 
@@ -190,12 +124,10 @@ namespace SquidSnapshot {
 	}
 
 	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = other.freelist[i];
-        }
-	
-	return *this;
+	    freelist[i].init(this, l1_dir, i, L2_SIZE);
+        }	
     }
-    
+
 
     Genode::Directory::Path L1Dir::to_path(void) 
     {
@@ -239,11 +171,25 @@ namespace SquidSnapshot {
     }
 
 
-    L2Dir::L2Dir(L1Dir *parent, unsigned int l1, unsigned int l2, unsigned int capacity)
-	: capacity(capacity), freecount(capacity), l1_dir(l1), l2_dir(l2), parent(parent)
-    {
+    L2Dir::L2Dir()
+	: capacity(L2_SIZE), freecount(capacity), l1_dir(0), l2_dir(0), parent(nullptr)
+    {}
 
-	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
+
+    L2Dir::~L2Dir(void)
+    {
+        SquidSnapshot::squidutils->_heap.free (freelist, 0);
+    }
+
+
+    void L2Dir::init(L1Dir *parent, unsigned int l1, unsigned int l2, unsigned int capacity)
+    {
+	this->parent = parent;
+	this->l1_dir = l1;
+	this->l2_dir = l2;
+	this->capacity = capacity;
+	this->freecount = capacity;
+	this->freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
 	
 	Genode::Directory::Path path = to_path();
 
@@ -254,56 +200,7 @@ namespace SquidSnapshot {
 
 	for (unsigned int i = 0; i < capacity; i++) {
 	    freelist[i] = SquidFileHash(this, l1_dir, l2_dir, i);
-        }
-    }
-
-
-    L2Dir::L2Dir(const L2Dir &other)
-	: capacity(other.capacity), freecount(other.freecount), l1_dir(other.l1_dir), l2_dir(other.l2_dir), parent(other.parent)
-    {
-	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
-
-	Genode::Directory::Path path = to_path();
-
-	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-	}
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = other.freelist[i];
-        }
-    }
-
-
-    L2Dir::~L2Dir(void)
-    {
-        SquidSnapshot::squidutils->_heap.free (freelist, 0);
-    }
-
-
-    L2Dir& L2Dir::operator=(const L2Dir &other) 
-    {
-	parent = other.parent;
-	l1_dir = other.l1_dir;
-	l2_dir = other.l2_dir;
-	capacity = other.capacity;
-	freecount = other.freecount;
-	
-	freelist = (SquidFileHash *) SquidSnapshot::squidutils->_heap.alloc(sizeof(SquidFileHash) * capacity);
-
-	Genode::Directory::Path path = to_path();
-
-	SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-	if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-	    Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-	}
-
-	for (unsigned int i = 0; i < capacity; i++) {
-	    freelist[i] = other.freelist[i];
-        }
-	
-	return *this;
+        }	
     }
     
 
