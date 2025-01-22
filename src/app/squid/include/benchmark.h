@@ -3,15 +3,13 @@
 
 #include "squid.h"
 
-struct big_data 
+struct big_data
 {
     unsigned int size;
     unsigned int width;
     unsigned int height;
 };
 
-    
-void squid_benchmark(void);
-
+void squid_benchmark (void);
 
 #endif // __BENCHMARK_H
