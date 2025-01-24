@@ -182,7 +182,7 @@ append config {
 		<config>
 			<large seek="yes"/>
 			<vfs>
-                        <dir name="squid-cache"> <ram /> </dir>
+                        <dir name="squid-root"> <ram /> </dir>
 				<fs/>
 			</vfs>
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
