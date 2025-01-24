@@ -109,6 +109,7 @@ namespace SquidSnapshot {
     L1Dir::~L1Dir(void)
     {
         SquidSnapshot::squidutils->_heap.free (freelist, 0);
+	parent->return_entry(l1_dir);
     }
     
 
@@ -176,6 +177,7 @@ namespace SquidSnapshot {
     L2Dir::~L2Dir(void)
     {
         SquidSnapshot::squidutils->_heap.free (freelist, 0);
+	parent->return_entry(l2_dir);
     }
     
 
@@ -227,7 +229,9 @@ namespace SquidSnapshot {
     
     
     SquidFileHash::~SquidFileHash(void)
-    {}    
+    {
+	parent->return_entry(file_id);
+    }    
 
 
     Genode::Directory::Path SquidFileHash::to_path(void) 
