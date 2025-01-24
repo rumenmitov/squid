@@ -27,10 +27,11 @@
 #include <base/sleep.h>
 #include <base/attached_rom_dataspace.h>
 #include <base/heap.h>
- #include <util/bit_array.h>
 #include <os/vfs.h>
 #include <vfs/file_system_factory.h>
 #include <base/buffered_output.h>
+#include <util/bit_array.h>
+
 
 #define BITS_PER_WORD sizeof(addr_t) * 8UL
 #define WORD_ALIGN(_BITS) (BITS_PER_WORD) - (_BITS % (BITS_PER_WORD)) + _BITS
@@ -76,7 +77,6 @@ namespace SquidSnapshot {
     class SnapshotRoot
     {
     protected:
-	unsigned int capacity;
         L1Dir *freelist = nullptr;
 	unsigned int freeindex;
 	Genode::Bit_array<ROOT_SIZE> freemask;
@@ -85,7 +85,7 @@ namespace SquidSnapshot {
 	SnapshotRoot& operator=(const SnapshotRoot&) = delete;
 
     public:
-	SnapshotRoot(unsigned int capacity = ROOT_SIZE);
+	SnapshotRoot();
 	~SnapshotRoot(void);
 
 	Genode::Directory::Path to_path(void);
@@ -104,10 +104,9 @@ namespace SquidSnapshot {
     class L1Dir 
     {
     private:
-	unsigned int capacity;
         L2Dir *freelist = nullptr;
 	unsigned int freeindex;
-	Genode::Bit_array<L1_SIZE> freemask{};
+	Genode::Bit_array<L1_SIZE> freemask;
 
 	unsigned int l1_dir;
 
@@ -118,7 +117,7 @@ namespace SquidSnapshot {
 
 
     public:
-	L1Dir(SnapshotRoot*, unsigned int, unsigned int capacity = L1_SIZE);
+	L1Dir(SnapshotRoot*, unsigned int);
 	~L1Dir(void);
 
 	Genode::Directory::Path to_path(void);
@@ -135,10 +134,10 @@ namespace SquidSnapshot {
     class L2Dir 
     {
     private:
-	unsigned int capacity;
-	SquidFileHash *freelist = nullptr;
-	unsigned int freecount;
-
+        SquidFileHash *freelist = nullptr;
+	unsigned int freeindex;
+	Genode::Bit_array<L2_SIZE> freemask;
+	
 	unsigned int l1_dir;
 	unsigned int l2_dir;
 
@@ -148,34 +147,35 @@ namespace SquidSnapshot {
         L2Dir &operator= (const L2Dir &) = delete;
 
     public:
-	L2Dir(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
+	L2Dir(L1Dir*, unsigned int l1, unsigned int l2);
 	~L2Dir(void);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
 
 	SquidFileHash* get_entry(void);
-	void return_entry(void);
+	void return_entry(unsigned int);
     };
 
 
     /**
      * @brief Represents squid hash of a file. Comprised of L1, L2 directories and the file id.
      */
-    struct SquidFileHash 
+    class SquidFileHash
     {
+    private:
 	unsigned int l1_dir;
 	unsigned int l2_dir;
 	unsigned int file_id;
 
 	L2Dir *parent;
 
+        SquidFileHash(const SquidFileHash&) = delete;
+	SquidFileHash &operator= (const SquidFileHash &) = delete;
+
+    public:
         SquidFileHash(L2Dir *, unsigned int, unsigned int, unsigned int);
-	SquidFileHash(const SquidFileHash&);
-
         ~SquidFileHash(void);
-
-	SquidFileHash& operator=(const SquidFileHash&);
 	
 	Genode::Directory::Path to_path(void);
     };
