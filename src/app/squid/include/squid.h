@@ -71,12 +71,13 @@ namespace SquidSnapshot {
     class L2Dir;
     class SquidFileHash;
 
+    
     /**
      * @brief Manages L1 directories in the snapshot root.
      */
     class SnapshotRoot
     {
-    protected:
+    private:
         L1Dir *freelist = nullptr;
 	unsigned int freeindex;
 	Genode::Bit_array<ROOT_SIZE> freemask;

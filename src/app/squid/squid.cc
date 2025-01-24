@@ -347,7 +347,6 @@ extern "C" {
 
     enum SquidError squid_hash(void **hash) 
     {
-	// TODO should handle fail case (no more hashes)
 	SquidSnapshot::SquidFileHash *squid_generated_hash = SquidSnapshot::global_squid->root_manager.get_hash();
 	if (squid_generated_hash == nullptr) return SQUID_FULL;
 
