@@ -17,7 +17,7 @@ Previously, PhantomOS used a superblock mechanism. This entailed that the machin
 * Terminology
 The previous iteration of snapshotting in PhantomOS used a superblock structure to save the machine state. This new approach uses logging. This new approach means that instead of saving every piece of data every time a snapshot is taken, only the changed pieces of data are saved. On recovery, the kernel walks through all the changes and can recreate the state.
 
-Since this work has been inspired by the Squid Cache, the snapshot mechanism is referred to as Squid Snapshot. The root directory in which all snapshots are stored is =/squid-root=.
+Since this work has been inspired by the Squid Cache, the snapshot mechanism is referred to as Squid Snapshot. The root directory in which all snapshots are stored is =/=.
 
 The root directory contains timestamped directories which from now will be referred to as the individual snapshots. Each snapshot comprises of _ROOT_SIZE_ number of level 1 directory, which itself contains _L1_SIZE_ number of level 2 directories. Since L2 directories have to manage state (/see [[id:directory-structure][Directory Structure]]/) _L2_DIR_ will refer to an arbitrary level 2 directory.
 
@@ -65,7 +65,7 @@ An alternative approach would be to reserve one file per page. This would be far
 I chose to go with the second option, simply because it sounded more interesting. Although it could be useful in the future to be able to specify which approach the kernel should use.
 
 ** Retention Policy
-All snapshots are stored in the =/squid-root= directory. Finished snapshots are renamed to the UNIX timestamp of when that particular snapshot was completed.
+All snapshots are stored in the =/squid-cache= root directory. Finished snapshots are renamed to the UNIX timestamp of when that particular snapshot was completed.
 
 By default, snapshots are taken every minute. The system will retain at most 5 finished snapshots at a time by default. However, if the machine is short on disk space, older snapshots will be pruned at a higher rate (/for more on this see [[id:new-snapshot][New Snapshot]]/).
 
@@ -76,7 +76,7 @@ The state of the Squid Snapshots is managed by the global object _global_squid_ 
 :properties:
 :id: directory-structure
 :end:
-All Squid Snapshots are stored inside the squid root =/squid-root=. The squid root contains the individual versioned snapshots. The versions are timestamps of when the snapshot was created.
+All Squid Snapshots are stored inside the squid root =/squid-cache=. The squid root contains the individual versioned snapshots. The versions are timestamps of when the snapshot was created.
 
 Each snapshot is represented by a bounded trie, i.e. there is a fixed _ROOT_SIZE_ number of directories within the snapshot (these are referred to as level 1 directories of L1 for short). Inside each L1 there are _L1_SIZE_ number of level 2 directories. Each level 2 directory contains _L2_SIZE_ number of hashes.
 
@@ -88,7 +88,7 @@ Each hash represents a unique random file identifier which corresponds to one pi
 
 #+caption: Example directory tree of Squid Snapshot.
 #+begin_src ascii
-Squid Root                          squid-root
+Squid Root                          squid-cache
                                          |
                                --------------------
                                |        ...
@@ -217,7 +217,7 @@ To ensure there is enough disk-space on for a snapshot we should keep track of t
  #+begin_src C
    struct ext4_mount_stats stats;
    
-   int err = ext4_mount_point_stats("/squid-root", &stats);
+   int err = ext4_mount_point_stats("/squid-cache", &stats);
    if (err != 0) {} // error occured
 
    uint32_t avail_disk_space = stats.free_blocks_count * stats.block_size;
