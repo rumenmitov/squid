@@ -78,9 +78,9 @@ The state of the Squid Snapshots is managed by the global object _global_squid_ 
 :end:
 All Squid Snapshots are stored inside the squid root =/squid-cache=. The squid root contains the individual versioned snapshots. The versions are timestamps of when the snapshot was created.
 
-Each snapshot is represented by a bounded trie, i.e. there is a fixed _L1_SIZE_ number of directories within the snapshot (these are referred to as level 1 directories of L1 for short). Inside each L1 there are _L2_SIZE_ number of level 2 directories. Each level 2 directory contains _CAPACITY_ number of hashes.
+Each snapshot is represented by a bounded trie, i.e. there is a fixed _ROOT_SIZE_ number of directories within the snapshot (these are referred to as level 1 directories of L1 for short). Inside each L1 there are _L1_SIZE_ number of level 2 directories. Each level 2 directory contains _L2_SIZE_ number of hashes.
 
-Each hash represents a unique random file identifier which corresponds to one piece of data (i.e. one virtual memory page). For performance reasons, each _L2_DIR_ keeps track of the available hashes in a stack. When new data requests a hash, an available one is popped. When data is not needed anymore (i.e. its _SquidFileHash_ destructor is called) the available hash is appended back to the stack.
+Each hash represents a unique random file identifier which corresponds to one piece of data (i.e. one virtual memory page). For performance reasons, each _L2DIR_ keeps track of the available hashes in a stack. When new data requests a hash, an available one is popped. When data is not needed anymore (i.e. its _SquidFileHash_ destructor is called) the available hash is appended back to the stack.
 
 #+begin_export latex
 \clearpage
