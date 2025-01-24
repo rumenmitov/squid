@@ -27,7 +27,7 @@
 #include <base/sleep.h>
 #include <base/attached_rom_dataspace.h>
 #include <base/heap.h>
-#include <util/bit_array.h>
+ #include <util/bit_array.h>
 #include <os/vfs.h>
 #include <vfs/file_system_factory.h>
 #include <base/buffered_output.h>
@@ -85,10 +85,8 @@ namespace SquidSnapshot {
 	SnapshotRoot& operator=(const SnapshotRoot&) = delete;
 
     public:
-	SnapshotRoot();
+	SnapshotRoot(unsigned int capacity = ROOT_SIZE);
 	~SnapshotRoot(void);
-
-	void init(unsigned int capacity = ROOT_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
@@ -109,7 +107,7 @@ namespace SquidSnapshot {
 	unsigned int capacity;
         L2Dir *freelist = nullptr;
 	unsigned int freeindex;
-	Genode::Bit_array<L1_SIZE> freemask;
+	Genode::Bit_array<L1_SIZE> freemask{};
 
 	unsigned int l1_dir;
 
@@ -120,10 +118,8 @@ namespace SquidSnapshot {
 
 
     public:
-	L1Dir();
+	L1Dir(SnapshotRoot*, unsigned int, unsigned int capacity = L1_SIZE);
 	~L1Dir(void);
-
-	void init(SnapshotRoot*, unsigned int, unsigned int capacity = L1_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
@@ -152,10 +148,8 @@ namespace SquidSnapshot {
         L2Dir &operator= (const L2Dir &) = delete;
 
     public:
-	L2Dir();
+	L2Dir(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
 	~L2Dir(void);
-
-	void init(L1Dir*, unsigned int l1, unsigned int l2, unsigned int capacity = L2_SIZE);
 
 	Genode::Directory::Path to_path(void);
 	bool is_full(void);
