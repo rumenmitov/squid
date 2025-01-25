@@ -24,10 +24,10 @@ set dd     [installed_command dd]
 set build_components {
 	core init
 	timer
-    	driver/ahci
-	driver/platform
+    	drivers/ahci
+	drivers/platform
 	server/report_rom
-	driver/acpi
+	drivers/acpi
 	app/pci_decode	
 	server/vfs
 	lib/vfs
@@ -79,8 +79,8 @@ append config {
 		<resource name="RAM" quantum="2M"/>
 		<provides> <service name="Report"/> <service name="ROM"/> </provides>
 		<config>
-			<policy label="pci_decode -> system" report="acpi -> acpi"/>
-			<policy label="platform -> devices"  report="pci_decode -> devices"/>
+			<policy label="pci_decode -> system" report="acpi_drv -> acpi"/>
+			<policy label="platform_drv -> devices"  report="pci_decode -> devices"/>
 		</config>
 	</start>
 
@@ -98,7 +98,7 @@ append config {
 		</route>
 	</start>
 
-	<start name="acpi" caps="350">
+	<start name="acpi_drv" caps="350">
 		<resource name="RAM" quantum="4M"/>
 		<route>
 			<service name="Report"> <child name="report_rom"/> </service>
@@ -125,7 +125,7 @@ append config {
 		</route>
 	</start>
 
-	<start name="platform" caps="100" managing_system="yes">
+	<start name="platform_drv" caps="100" managing_system="yes">
 		<resource name="RAM" quantum="1M"/>
 		<provides>
 			<service name="Platform"/>
@@ -144,11 +144,11 @@ append config {
 		</route>
 		<config>
 			<report devices="yes"/>
-			<policy label="ahci -> "> <pci class="AHCI"/> </policy>
+			<policy label="ahci_drv -> "> <pci class="AHCI"/> </policy>
 		</config>
 	</start>
 
-	<start name="ahci">
+	<start name="ahci_drv">
 		<resource name="RAM" quantum="10M"/>
 		<provides><service name="Block"/></provides>
 		<config atapi="yes">
@@ -172,13 +172,13 @@ append config {
  			<policy label_prefix="squid" root="/" writeable="yes"/>
  		</config>
 		<route>
-			<service name="Block"><child name="ahci"/></service>
+			<service name="Block"><child name="ahci_drv"/></service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
  	</start>
 
-	<start name="squid">
-		<resource name="RAM" quantum="4M"/>
+	<start name="squid" caps="2000">
+		<resource name="RAM" quantum="2G"/>
 		<config>
 			<large seek="yes"/>
 			<vfs>
@@ -201,7 +201,7 @@ append qemu_args " -device ide-hd,drive=disk,bus=ahci.0 "
 
 build_boot_image [list {*}[build_artifacts] ext4.raw]
 
-run_genode_until {exited with exit value*} 30
+run_genode_until {benchmark finished*} 1000
 
 #exec rm -f bin/ext4.raw
 
