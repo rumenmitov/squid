@@ -16,7 +16,7 @@ void Component::construct(Genode::Env &env)
     
     Genode::log("testing squid...");
 
-    SquidSnapshot::Error err = SquidSnapshot::global_squid->_test();
+    SquidSnapshot::Error err = SquidSnapshot::global_squid->test();
     switch (err) {
     case SquidSnapshot::Error::CreateFile:
 	Genode::error("\nfailed to create file\n");
@@ -42,6 +42,8 @@ void Component::construct(Genode::Env &env)
     Genode::log("benchmarking squid...");
 
     squid_benchmark();
+    SquidSnapshot::global_squid->finish();
+    
 
     Genode::log("benchmark finished.");
 

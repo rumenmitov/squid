@@ -1,5 +1,6 @@
 #include "squid.h"
 #include "squidlib.h"
+#include "vfs/directory_service.h"
 
 #include <base/stdint.h>
 #include <format/snprintf.h>
@@ -59,7 +60,7 @@ namespace SquidSnapshot {
             if (!freelist[freeindex].is_full()) {
                 if (!freemask.get(freeindex, 1))
                     freemask.set(freeindex, 1);
-		
+
                 return &freelist[freeindex];
             } else {
                 freemask.clear(freeindex, 1);
@@ -149,7 +150,7 @@ namespace SquidSnapshot {
             if (!freelist[freeindex].is_full()) {
                 if (!freemask.get(freeindex, 1))
                     freemask.set(freeindex, 1);
-		
+
                 return &freelist[freeindex];
             } else {
                 freemask.clear(freeindex, 1);
@@ -276,7 +277,7 @@ namespace SquidSnapshot {
         return hash;
     }
 
-    Error Main::_write(Path const& path, void* payload, size_t size)
+    Error Main::write(Path const& path, void* payload, size_t size)
     {
         try {
             New_file file(SquidSnapshot::squidutils->_root_dir, path);
@@ -294,7 +295,7 @@ namespace SquidSnapshot {
         return Error::None;
     }
 
-    Error Main::_read(Path const& path, void* payload)
+    Error Main::read(Path const& path, void* payload)
     {
         Readonly_file file(SquidSnapshot::squidutils->_root_dir, path);
         Readonly_file::At at{ 0 };
@@ -317,7 +318,31 @@ namespace SquidSnapshot {
         return Error::None;
     }
 
-    Error Main::_test(void)
+    void Main::finish(void)
+    {
+        Genode::int64_t timestamp =
+          SquidSnapshot::squidutils->_timer.curr_time()
+            .trunc_to_plain_us()
+            .value;
+
+        char snapshot_timestamp[1024];
+        Format::snprintf(
+          snapshot_timestamp, 1024, "/%s/%llu", SQUIDROOT, timestamp);
+
+	char snapshot_current[1024];
+        Format::snprintf(snapshot_current, 1024, "/%s/current", SQUIDROOT);
+
+        auto fs = SquidSnapshot::squidutils->_fs_factory.create(
+          SquidSnapshot::squidutils->_vfs_env,
+          SquidSnapshot::squidutils->_config.xml().sub_node("lwext4"));
+
+        if (fs->rename(snapshot_current, snapshot_timestamp) !=
+            Vfs::Directory_service::RENAME_OK)
+	    Genode::error("rename no good!");
+	
+    }
+
+    Error Main::test(void)
     {
         char message[] = "payload";
 
@@ -325,7 +350,7 @@ namespace SquidSnapshot {
         if (hash == nullptr)
             return Error::OutOfHashes;
 
-        switch (global_squid->_write(
+        switch (global_squid->write(
           hash->to_path(), (void*)message, sizeof(message) / sizeof(char))) {
 
             case Error::CreateFile:
@@ -342,7 +367,7 @@ namespace SquidSnapshot {
           (char*)SquidSnapshot::squidutils->_heap.alloc(sizeof(char) * 20);
 
         switch (
-          SquidSnapshot::global_squid->_read(hash->to_path(), (void*)echo)) {
+          SquidSnapshot::global_squid->read(hash->to_path(), (void*)echo)) {
 
             case Error::ReadFile:
                 return Error::ReadFile;
@@ -391,7 +416,7 @@ extern "C"
     {
         auto path = ((SquidSnapshot::SquidFileHash*)hash)->to_path();
 
-        switch (SquidSnapshot::global_squid->_write(path, payload, size)) {
+        switch (SquidSnapshot::global_squid->write(path, payload, size)) {
             case SquidSnapshot::Error::CreateFile:
                 return SQUID_CREATE;
 
@@ -407,7 +432,7 @@ extern "C"
     {
         auto path = ((SquidSnapshot::SquidFileHash*)hash)->to_path();
 
-        switch (SquidSnapshot::global_squid->_read(path, payload)) {
+        switch (SquidSnapshot::global_squid->read(path, payload)) {
             case SquidSnapshot::Error::ReadFile:
                 return SQUID_READ;
 
@@ -432,7 +457,7 @@ extern "C"
 
     enum SquidError squid_test(void)
     {
-        switch (SquidSnapshot::global_squid->_test()) {
+        switch (SquidSnapshot::global_squid->test()) {
             case SquidSnapshot::Error::CreateFile:
                 return SQUID_CREATE;
 
