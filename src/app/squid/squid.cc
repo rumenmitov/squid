@@ -1,6 +1,8 @@
 #include "squid.h"
+#include "base/exception.h"
 #include "squidlib.h"
 #include "vfs/directory_service.h"
+#include "vfs/vfs_handle.h"
 
 #include <base/stdint.h>
 #include <format/snprintf.h>
@@ -21,8 +23,7 @@ namespace SquidSnapshot {
         this->freemask.set(0, ROOT_SIZE);
 
         Genode::Directory::Path path = to_path();
-
-        SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+        SquidSnapshot::squidutils->createdir(path);
 
         if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
             Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
@@ -103,8 +104,7 @@ namespace SquidSnapshot {
         freemask.set(0, L1_SIZE);
 
         Genode::Directory::Path path = to_path();
-
-        SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
+        SquidSnapshot::squidutils->createdir(path);
 
         if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
             Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
@@ -179,12 +179,7 @@ namespace SquidSnapshot {
         this->freemask.set(0, L2_SIZE);
 
         Genode::Directory::Path path = to_path();
-
-        SquidSnapshot::squidutils->_root_dir.create_sub_directory(path);
-
-        if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
-            Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-        }
+        SquidSnapshot::squidutils->createdir(path);
 
         for (unsigned int i = 0; i < L2_SIZE; i++) {
             construct_at<SquidFileHash>(&freelist[i], this, l1_dir, l2_dir, i);
@@ -277,6 +272,54 @@ namespace SquidSnapshot {
         return hash;
     }
 
+    void SquidUtils::createdir(const Genode::Directory::Path& path)
+    {
+        Vfs::Vfs_handle* handle;
+        auto res = _fs.opendir(path.string(), true, &handle, _heap);
+
+        if (res != Vfs::Directory_service::OPENDIR_ERR_NODE_ALREADY_EXISTS &&
+            res != Vfs::Directory_service::OPENDIR_OK) {
+            Genode::error("Couldn't open directory: ", path);
+
+            if (res == Vfs::Directory_service::OPENDIR_ERR_PERMISSION_DENIED)
+                Genode::error("reason: permission");
+
+            throw Genode::Exception();
+
+            // } else {
+            //     handle->close();
+        }
+    }
+
+    Main::Main(SquidSnapshot::SquidUtils* squidutils)
+    {
+        // TODO finish this
+        squidutils->createdir(Path("/squid-root/current"));
+
+        construct_at<SquidSnapshot::SnapshotRoot>(&root_manager);
+    }
+
+    void Main::finish(void)
+    {
+        Genode::int64_t timestamp =
+          SquidSnapshot::squidutils->_timer.curr_time()
+            .trunc_to_plain_us()
+            .value;
+
+        char snapshot_timestamp[1024];
+        Format::snprintf(
+          snapshot_timestamp, 1024, "/%s/%llu", SQUIDROOT, timestamp);
+
+        char snapshot_current[1024];
+        Format::snprintf(snapshot_current, 1024, "/%s/current", SQUIDROOT);
+
+        if (SquidSnapshot::squidutils->_fs.rename(snapshot_current,
+                                                  snapshot_timestamp) ==
+            Vfs::Directory_service::RENAME_ERR_NO_ENTRY) {
+            Genode::error("rename no good!");
+        }
+    }
+
     Error Main::write(Path const& path, void* payload, size_t size)
     {
         try {
@@ -318,35 +361,11 @@ namespace SquidSnapshot {
         return Error::None;
     }
 
-    void Main::finish(void)
-    {
-        Genode::int64_t timestamp =
-          SquidSnapshot::squidutils->_timer.curr_time()
-            .trunc_to_plain_us()
-            .value;
-
-        char snapshot_timestamp[1024];
-        Format::snprintf(
-          snapshot_timestamp, 1024, "/%s/%llu", SQUIDROOT, timestamp);
-
-	char snapshot_current[1024];
-        Format::snprintf(snapshot_current, 1024, "/%s/current", SQUIDROOT);
-
-        auto fs = SquidSnapshot::squidutils->_fs_factory.create(
-          SquidSnapshot::squidutils->_vfs_env,
-          SquidSnapshot::squidutils->_config.xml().sub_node("lwext4"));
-
-        if (fs->rename(snapshot_current, snapshot_timestamp) !=
-            Vfs::Directory_service::RENAME_OK)
-	    Genode::error("rename no good!");
-	
-    }
-
     Error Main::test(void)
     {
         char message[] = "payload";
 
-        SquidFileHash* hash = global_squid->root_manager.get_hash();
+        SquidFileHash* hash = global_squid->root_manager->get_hash();
         if (hash == nullptr)
             return Error::OutOfHashes;
 
@@ -402,7 +421,7 @@ extern "C"
     enum SquidError squid_hash(void** hash)
     {
         SquidSnapshot::SquidFileHash* squid_generated_hash =
-          SquidSnapshot::global_squid->root_manager.get_hash();
+          SquidSnapshot::global_squid->root_manager->get_hash();
         if (squid_generated_hash == nullptr)
             return SQUID_FULL;
 

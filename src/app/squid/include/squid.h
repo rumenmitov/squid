@@ -21,18 +21,19 @@
 #ifndef __SQUID_H
 #define __SQUID_H
 
+#include "vfs/dir_file_system.h"
 #ifdef __cplusplus
 
-#include <lwext4/init.h>
 #include <base/attached_rom_dataspace.h>
 #include <base/buffered_output.h>
 #include <base/component.h>
 #include <base/heap.h>
 #include <base/sleep.h>
+#include <lwext4/init.h>
 #include <os/vfs.h>
+#include <timer_session/connection.h>
 #include <util/bit_array.h>
 #include <vfs/file_system_factory.h>
-#include <timer_session/connection.h>
 
 #define BITS_PER_WORD sizeof(addr_t) * 8UL
 #define WORD_ALIGN(_BITS) (BITS_PER_WORD) - (_BITS % (BITS_PER_WORD)) + _BITS
@@ -190,31 +191,42 @@ namespace SquidSnapshot {
 
         Vfs::Global_file_system_factory _fs_factory{ _heap };
         Vfs::Simple_env _vfs_env{ _env, _heap, _config.xml().sub_node("vfs") };
-//	Vfs::File_system _vfs_fs = Lwext4_factory::create(_vfs_env, _config.xml().sub_node("lwext4"));
+        Vfs::Dir_file_system _fs{ _vfs_env,
+                                  _config.xml().sub_node("vfs"),
+                                  _fs_factory };
+
         Directory _root_dir{ _vfs_env };
 
-	
         Genode::Entrypoint _ep_timer{ _env,
                                       sizeof(Genode::addr_t) * 2048,
                                       "entrypoint_timer",
                                       Genode::Affinity::Location() };
-	
+
         Timer::Connection _timer{ _env, _ep_timer, "squid_timer" };
+
+        // TODO proper error handling
+	void createdir(const Genode::Directory::Path& path);
     };
 
-    struct Main
+    class Main
     {
+      private:
+        Main() = delete;
+        Main(const Main&) = delete;
+        Main& operator=(const Main&) = delete;
+
+      public:
         /* INFO
            The constructor should be called only AFTER SquidUtils
            has been initialized.
         */
-        Main() = delete;
-        Main(SquidSnapshot::SquidUtils*) {}
+        Main(SquidSnapshot::SquidUtils*);
+        void finish();
 
         /**
          * @brief Responsible for managing file structure of snapshot.
          */
-        SnapshotRoot root_manager{};
+        SnapshotRoot* root_manager = nullptr;
 
         /**
          * @brief Writes payload to file (creates one if it does not exist).
@@ -226,12 +238,6 @@ namespace SquidSnapshot {
          */
         enum Error read(Path const& path, void* payload);
 
-        /**
-         * @brief Mark snapshot as finished by renaming it to the
-         *        current timestamp.
-         */
-	void finish(void);
-	
         /**
          * @brief Unit test.
          */
