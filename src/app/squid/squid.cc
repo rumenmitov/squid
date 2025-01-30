@@ -2,6 +2,8 @@
 #include "base/exception.h"
 #include "squidlib.h"
 #include "vfs/directory_service.h"
+#include "vfs/file_io_service.h"
+#include "vfs/types.h"
 #include "vfs/vfs_handle.h"
 
 #include <base/stdint.h>
@@ -25,7 +27,7 @@ namespace SquidSnapshot {
         Genode::Directory::Path path = to_path();
         SquidSnapshot::squidutils->createdir(path);
 
-        if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
+        if (!SquidSnapshot::squidutils->_fs.directory_exists(path)) {
             Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
         }
 
@@ -106,7 +108,7 @@ namespace SquidSnapshot {
         Genode::Directory::Path path = to_path();
         SquidSnapshot::squidutils->createdir(path);
 
-        if (!SquidSnapshot::squidutils->_root_dir.directory_exists(path)) {
+        if (!SquidSnapshot::squidutils->_fs.directory_exists(path)) {
             Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
         }
 
@@ -294,6 +296,9 @@ namespace SquidSnapshot {
     Main::Main(SquidSnapshot::SquidUtils* squidutils)
     {
         // TODO finish this
+        Vfs::Vfs_handle* vfs_root_handle;
+        squidutils->_fs.opendir(
+          "/", false, &vfs_root_handle, squidutils->_heap);
         squidutils->createdir(Path("/squid-root/current"));
 
         construct_at<SquidSnapshot::SnapshotRoot>(&root_manager);
@@ -322,17 +327,26 @@ namespace SquidSnapshot {
 
     Error Main::write(Path const& path, void* payload, size_t size)
     {
-        try {
-            New_file file(SquidSnapshot::squidutils->_root_dir, path);
+        // TODO refine code + error checking
+        Vfs::Vfs_handle* handle;
 
-            if (file.append((const char*)payload, size) !=
-                New_file::Append_result::OK) {
+        auto res =
+          squidutils->_fs.open(path,
+                               Vfs::Directory_service::OPEN_MODE_CREATE,
+                               &handle,
+                               squidutils->_heap);
 
-                return Error::WriteFile;
-            }
-
-        } catch (New_file::Create_failed) {
+        if (res != Vfs::Directory_service::OPEN_OK) {
             return Error::CreateFile;
+        }
+
+        Vfs::Const_byte_range_ptr _payload((const char*)payload, size);
+
+        auto write_res = squidutils->_fs.write(handle, _payload, size);
+        handle->close();
+
+        if (write_res != Vfs::File_io_service::WRITE_OK) {
+            return Error::WriteFile;
         }
 
         return Error::None;
@@ -340,7 +354,21 @@ namespace SquidSnapshot {
 
     Error Main::read(Path const& path, void* payload)
     {
-        Readonly_file file(SquidSnapshot::squidutils->_root_dir, path);
+        // TODO refine code + error checking
+        Vfs::Vfs_handle* handle;
+
+        auto res =
+          squidutils->_fs.open(path,
+                               Vfs::Directory_service::OPEN_MODE_RDONLY,
+                               &handle,
+                               squidutils->_heap);
+
+        if (res != Vfs::Directory_service::OPEN_OK) {
+	    // TODO should be "file not found" error
+            return Error::ReadFile;	    
+	}
+
+        Readonly_file file(SquidSnapshot::squidutils->_fs, path);
         Readonly_file::At at{ 0 };
 
         Byte_range_ptr buffer((char*)payload, 1024);

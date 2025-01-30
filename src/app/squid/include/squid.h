@@ -191,11 +191,9 @@ namespace SquidSnapshot {
 
         Vfs::Global_file_system_factory _fs_factory{ _heap };
         Vfs::Simple_env _vfs_env{ _env, _heap, _config.xml().sub_node("vfs") };
-        Vfs::Dir_file_system _fs{ _vfs_env,
-                                  _config.xml().sub_node("vfs"),
-                                  _fs_factory };
+        Vfs::File_system &_fs =  _vfs_env.root_dir();
+	
 
-        Directory _root_dir{ _vfs_env };
 
         Genode::Entrypoint _ep_timer{ _env,
                                       sizeof(Genode::addr_t) * 2048,
