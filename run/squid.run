@@ -68,9 +68,9 @@ append config {
  		<config ld_verbose="yes">
  			<vfs>
  				<dir name="dev">
- 					<block name="hdd" block_buffer_count="128"/>
+ 					<block name="block" block_buffer_count="128"/>
  				</dir>
- 				<lwext4 block_device="/dev/hdd" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
+ 				<lwext4 block_device="/dev/block" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
  			</vfs>
  			<policy label_prefix="squid" root="/" writeable="yes"/>
  		</config>

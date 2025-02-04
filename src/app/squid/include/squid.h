@@ -21,7 +21,6 @@
 #ifndef __SQUID_H
 #define __SQUID_H
 
-#include "vfs/dir_file_system.h"
 #ifdef __cplusplus
 
 #include <base/attached_rom_dataspace.h>
@@ -29,7 +28,6 @@
 #include <base/component.h>
 #include <base/heap.h>
 #include <base/sleep.h>
-#include <lwext4/init.h>
 #include <os/vfs.h>
 #include <timer_session/connection.h>
 #include <util/bit_array.h>
@@ -62,9 +60,14 @@ namespace SquidSnapshot {
     /**
      * @brief Amount of entries in each level of the snapshot hierarchy.
      */
-    static const unsigned int ROOT_SIZE = WORD_ALIGN(16);
-    static const unsigned int L1_SIZE = WORD_ALIGN(256);
-    static const unsigned int L2_SIZE = WORD_ALIGN(1000);
+    static const unsigned int ROOT_SIZE = 3;
+    static const unsigned int __ROOT_SIZE = WORD_ALIGN(ROOT_SIZE);
+
+    static const unsigned int L1_SIZE = 2;
+    static const unsigned int __L1_SIZE = WORD_ALIGN(L1_SIZE);
+
+    static const unsigned int L2_SIZE = 5;
+    static const unsigned int __L2_SIZE = WORD_ALIGN(L2_SIZE);
 
     struct Main;
     class SnapshotRoot;
@@ -80,7 +83,7 @@ namespace SquidSnapshot {
       private:
         L1Dir* freelist = nullptr;
         unsigned int freeindex;
-        Genode::Bit_array<ROOT_SIZE> freemask;
+        Genode::Bit_array<__ROOT_SIZE> freemask;
 
         SnapshotRoot(const SnapshotRoot&) = delete;
         SnapshotRoot& operator=(const SnapshotRoot&) = delete;
@@ -106,7 +109,7 @@ namespace SquidSnapshot {
       private:
         L2Dir* freelist = nullptr;
         unsigned int freeindex;
-        Genode::Bit_array<L1_SIZE> freemask;
+        Genode::Bit_array<__L1_SIZE> freemask;
 
         unsigned int l1_dir;
 
@@ -134,7 +137,7 @@ namespace SquidSnapshot {
       private:
         SquidFileHash* freelist = nullptr;
         unsigned int freeindex;
-        Genode::Bit_array<L2_SIZE> freemask;
+        Genode::Bit_array<__L2_SIZE> freemask;
 
         unsigned int l1_dir;
         unsigned int l2_dir;
@@ -191,9 +194,8 @@ namespace SquidSnapshot {
 
         Vfs::Global_file_system_factory _fs_factory{ _heap };
         Vfs::Simple_env _vfs_env{ _env, _heap, _config.xml().sub_node("vfs") };
-        Vfs::File_system &_fs =  _vfs_env.root_dir();
-	
-
+        Vfs::File_system& _fs = _vfs_env.root_dir();
+        Root_directory _root_dir{ _env, _heap, _config.xml().sub_node("vfs") };
 
         Genode::Entrypoint _ep_timer{ _env,
                                       sizeof(Genode::addr_t) * 2048,
@@ -203,7 +205,7 @@ namespace SquidSnapshot {
         Timer::Connection _timer{ _env, _ep_timer, "squid_timer" };
 
         // TODO proper error handling
-	void createdir(const Genode::Directory::Path& path);
+        Vfs::Vfs_handle* createdir(const Genode::Directory::Path& path);
     };
 
     class Main

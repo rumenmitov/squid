@@ -1,10 +1,5 @@
 #include "squid.h"
-#include "base/exception.h"
 #include "squidlib.h"
-#include "vfs/directory_service.h"
-#include "vfs/file_io_service.h"
-#include "vfs/types.h"
-#include "vfs/vfs_handle.h"
 
 #include <base/stdint.h>
 #include <format/snprintf.h>
@@ -25,15 +20,17 @@ namespace SquidSnapshot {
         this->freemask.set(0, ROOT_SIZE);
 
         Genode::Directory::Path path = to_path();
-        SquidSnapshot::squidutils->createdir(path);
+	Vfs::Vfs_handle* handle = SquidSnapshot::squidutils->createdir(path);
 
-        if (!SquidSnapshot::squidutils->_fs.directory_exists(path)) {
+        if (!SquidSnapshot::squidutils->_fs.directory(path.string())) {
             Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
         }
 
         for (unsigned int i = 0; i < ROOT_SIZE; i++) {
             construct_at<L1Dir>(&freelist[i], this, i);
         }
+
+	if (handle) handle->close();
     }
 
     SnapshotRoot::~SnapshotRoot(void)
@@ -106,15 +103,13 @@ namespace SquidSnapshot {
         freemask.set(0, L1_SIZE);
 
         Genode::Directory::Path path = to_path();
-        SquidSnapshot::squidutils->createdir(path);
-
-        if (!SquidSnapshot::squidutils->_fs.directory_exists(path)) {
-            Genode::error(SQUID_ERROR_FMT "couldn't create directory: ", path);
-        }
+	Vfs::Vfs_handle *handle = SquidSnapshot::squidutils->createdir(path);
 
         for (unsigned int i = 0; i < L1_SIZE; i++) {
             construct_at<L2Dir>(&freelist[i], this, l1_dir, i);
         }
+
+	if (handle) handle->close();
     }
 
     L1Dir::~L1Dir(void)
@@ -181,11 +176,13 @@ namespace SquidSnapshot {
         this->freemask.set(0, L2_SIZE);
 
         Genode::Directory::Path path = to_path();
-        SquidSnapshot::squidutils->createdir(path);
+	Vfs::Vfs_handle *handle = SquidSnapshot::squidutils->createdir(path);
 
         for (unsigned int i = 0; i < L2_SIZE; i++) {
             construct_at<SquidFileHash>(&freelist[i], this, l1_dir, l2_dir, i);
         }
+
+	if (handle) handle->close();
     }
 
     L2Dir::~L2Dir(void)
@@ -274,7 +271,7 @@ namespace SquidSnapshot {
         return hash;
     }
 
-    void SquidUtils::createdir(const Genode::Directory::Path& path)
+    Vfs::Vfs_handle* SquidUtils::createdir(const Genode::Directory::Path& path)
     {
         Vfs::Vfs_handle* handle;
         auto res = _fs.opendir(path.string(), true, &handle, _heap);
@@ -291,6 +288,8 @@ namespace SquidSnapshot {
             // } else {
             //     handle->close();
         }
+
+	return handle;
     }
 
     Main::Main(SquidSnapshot::SquidUtils* squidutils)
@@ -327,26 +326,17 @@ namespace SquidSnapshot {
 
     Error Main::write(Path const& path, void* payload, size_t size)
     {
-        // TODO refine code + error checking
-        Vfs::Vfs_handle* handle;
+        try {
+            New_file file(SquidSnapshot::squidutils->_root_dir, path);
 
-        auto res =
-          squidutils->_fs.open(path,
-                               Vfs::Directory_service::OPEN_MODE_CREATE,
-                               &handle,
-                               squidutils->_heap);
+            if (file.append((const char*)payload, size) !=
+                New_file::Append_result::OK) {
 
-        if (res != Vfs::Directory_service::OPEN_OK) {
+                return Error::WriteFile;
+            }
+
+        } catch (New_file::Create_failed) {
             return Error::CreateFile;
-        }
-
-        Vfs::Const_byte_range_ptr _payload((const char*)payload, size);
-
-        auto write_res = squidutils->_fs.write(handle, _payload, size);
-        handle->close();
-
-        if (write_res != Vfs::File_io_service::WRITE_OK) {
-            return Error::WriteFile;
         }
 
         return Error::None;
@@ -354,21 +344,7 @@ namespace SquidSnapshot {
 
     Error Main::read(Path const& path, void* payload)
     {
-        // TODO refine code + error checking
-        Vfs::Vfs_handle* handle;
-
-        auto res =
-          squidutils->_fs.open(path,
-                               Vfs::Directory_service::OPEN_MODE_RDONLY,
-                               &handle,
-                               squidutils->_heap);
-
-        if (res != Vfs::Directory_service::OPEN_OK) {
-	    // TODO should be "file not found" error
-            return Error::ReadFile;	    
-	}
-
-        Readonly_file file(SquidSnapshot::squidutils->_fs, path);
+        Readonly_file file(SquidSnapshot::squidutils->_root_dir, path);
         Readonly_file::At at{ 0 };
 
         Byte_range_ptr buffer((char*)payload, 1024);

@@ -1,6 +1,6 @@
 TARGET   = squid
 SRC_CC   = main.cc squid.cc benchmark.cc
-LIBS     = lwext4 base format vfs
+LIBS     = vfs_lwext4 base format vfs lwext4
 
 INC_DIR += $(call select_from_ports,lwext4)/include
 INC_DIR += $(REP_DIR)/src/app/squid/include
