@@ -1,4 +1,4 @@
-#+title: Log-Based Snapshotting in PhantomOS Specification
+#+title: Log-Based Snapshotting Specification
 #+author: Rumen Mitov
 #+date: [2024-11-22]
 #+options: toc:nil
@@ -6,7 +6,7 @@
 
 
 * Minutiae
-- Genode-only source code (used for testing): https://github.com/rumenmitov/genode-squid/
+- Genode-only source code (used for testing): https://github.com/rumenmitov/squid/
 - PhantomOS Squid Snapshot implementation: https://github.com/rumenmitov/phantomuserland/tree/dev
   
 * Introduction
