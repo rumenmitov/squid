@@ -113,18 +113,24 @@ Hash  453
    - If not, try to recover
      - If recovery is unsuccessful error message is printed suggesting the use of a tool like *fsck*
 2. Check if a finished snapshot exists (choose latest)
-   - If it does load the *global squid* object from the particular snapshot root
+   - If it does load the *global_squid* object from the particular snapshot root
 3. Check if the squid version of the snapshot matches the system's version
    - If not, present the user with two options:
      - System crashes and user must use an older, compliant version of PhantomOS to recover the snapshots
      - Snapshots are deleted, PhantomOS boots up fresh
 4. Delete *current_snapshot* (if it exists)
    - *current_snapshot* signifies a snapshot that did not complete
+5. Restore data (if there is a prior snapshot)
+   - Copy the prior snapshot and name the root of the copy *current*. Keep in mind that files are hard-linked to the new snapshot as opposed to being copied!
+   - Each virtual-page with prior data should be mapped to a corresponding *SquidFileHash* (this data can be restored with =squid_read()=)
 
 ** New Snapshot
 :properties:
 :id: new-snapshot
 :end:
+
+When creating the first snapshot (i.e. there exist no prior snapshots) iterating over the kernel objects will provide a fairly accurate estimate of the size needed for the snapshot. However, if there already exists a prior snapshot, the approximation will be an over-estimate as unmodified data will not need to be copied into the current snapshot (it is hard-linked to a prior one).
+
 1. Estimate the size of the snapshot (call this size *snap_estimate*) by iterating over kernel objects
 2. *snap_estimate* should be 2x free space
    - If not, delete old snapshot until the condition is true
@@ -133,14 +139,11 @@ Hash  453
 5. Locks acquired for virtual memory pages inside the kernel
 6. For each _dirty_ virtual memory page:
    1. Acquire unique hash
-      - If no more hashes available crash the system (change the *L1*, *L2* and *CAPACITY* configuration)
+      - If no more hashes available crash the system (change the *ROOT_SIZE*, *L1_SIZE* and *L2_SIZE* configuration)
    2. Write virtual memory page to file
-7. For each _non-dirty_ virtual memory page:
-   1. If page is non-dirty it means it exists in an older snapshot and has a hash already
-   2. Hardlink the file from the older snapshot to the current snapshot
-8. Write the *global_squid* object to a file in the root of *current_snapshot*
-9. Measure the size of the snapshot directory and save the information in a human-readable format at the root of the snapshot directory
-10. Rename *current_snapshot* to the current timestamp, thus signifying that the snapshot is complete
+7. Write the *global_squid* object to a file in the root of *current_snapshot*
+8. Measure the size of the snapshot directory and save the information in a human-readable format at the root of the snapshot directory
+9. Rename *current* snapshot to the current timestamp, thus signifying that the snapshot is complete
 
 * Problems and Potential Solutions
 ** DONE Filesystem with Support for Logging

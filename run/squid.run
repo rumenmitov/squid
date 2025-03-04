@@ -24,8 +24,6 @@ build {
 # Build Ext4-file-system image
 #
 set image_size 16
-catch { exec $dd if=/dev/zero of=bin/vfs_block.raw bs=1M seek=$image_size count=0 }
-catch { exec $mke4fs -O^metadata_csum -F bin/vfs_block.raw }
 catch { exec $dd if=/dev/zero of=bin/squid_block.raw bs=1M seek=$image_size count=0 }
 catch { exec $mke4fs -O^metadata_csum -F bin/squid_block.raw }
 
@@ -56,14 +54,7 @@ append config {
 		<provides><service name="Timer"/></provides>
 	</start>
 
-	<start name="lx_block_vfs" ld="no">
-	        <binary name="lx_block" />
-		<resource name="RAM" quantum="1G"/>
-		<provides><service name="Block"/></provides>
-		<config file="vfs_block.raw" block_size="512" writeable="yes"/>
-	</start>
-
-	<start name="lx_block_squid" ld="no">
+	<start name="squid_block" ld="no">
 	        <binary name="lx_block" />
 		<resource name="RAM" quantum="1G"/>
 		<provides><service name="Block"/></provides>
@@ -77,14 +68,14 @@ append config {
  		<config ld_verbose="yes">
  			<vfs>
  				<dir name="dev">
- 					<block name="hdd" block_buffer_count="128"/>
+ 					<block name="block" block_buffer_count="128"/>
  				</dir>
- 				<lwext4 block_device="/dev/hdd" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
+ 				<lwext4 block_device="/dev/block" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
  			</vfs>
  			<policy label_prefix="squid" root="/" writeable="yes"/>
  		</config>
 		<route>
-			<service name="Block"><child name="lx_block_vfs"/></service>
+			<service name="Block"><child name="squid_block"/></service>
 			<any-service> <parent/> <any-child /> </any-service>
 		</route>
  	</start>
@@ -95,23 +86,20 @@ append config {
 		<config>
 			<large seek="yes"/>
 			<vfs>
-                        <dir name="squid-root"> <ram /> </dir>
+                        <dir name="squid-root"> </dir>
 				<fs/>
 			</vfs>
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 		</config>
-		<route>
-		  <service name="Block"><child name="lx_block_squid"/></service>
-	  	  <any-service> <parent/> <any-child /> </any-service>
-	  </route>
 	</start>
 </config>}
 
 install_config $config
 
-build_boot_image [list {*}[build_artifacts] vfs_block.raw squid_block.raw]
+build_boot_image [list {*}[build_artifacts] squid_block.raw]
 
 run_genode_until {benchmark finished*} 1000
+#run_genode_until forever
 
 #exec rm -f bin/vfs_block.raw
 #exec rm -f bin/squid_block.raw

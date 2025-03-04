@@ -1,0 +1,79 @@
+<runtime ram="3G" caps="3000" binary="init">
+  <config>
+    <parent-provides>
+     <service name="PD"/>
+     <service name="ROM"/>
+     <service name="CPU"/>
+     <service name="LOG"/>
+    </parent-provides>
+    
+    <default caps="500"/>
+    
+    <default-route>
+      <any-service> <parent/> <any-child/> </any-service>
+    </default-route>
+
+    <!-- <start name="squid_block" ld="no"> -->
+    <!--   <binary name="lx_block" /> -->
+    <!--   <resource name="RAM" quantum="1G"/> -->
+    <!--   <provides><service name="Block"/></provides> -->
+    <!--   <config file="squid_block.raw" block_size="512" writeable="yes"/> -->
+    <!-- </start> -->
+
+    <start name="squid_block">
+      <binary name="ahci_drv"/>
+      <resource name="RAM" quantum="10M"/>
+      <provides><service name="Block"/></provides>
+      <config atapi="yes">
+	<report ports="yes"/>
+	<policy label="vfs_lwext4_fs -> " device="0" writeable="yes" />
+	<policy label="squid -> " device="0" writeable="yes" />			
+      </config>
+    </start>
+    
+
+    <start name="vfs_lwext4_fs">
+      <binary name="vfs"/>
+      <resource name="RAM" quantum="24M" />
+      <provides><service name="File_system"/></provides>
+      <config ld_verbose="yes">
+ 	<vfs>
+ 	  <dir name="dev">
+ 	    <block name="block" block_buffer_count="128"/>
+ 	  </dir>
+ 	  <lwext4 block_device="/dev/block" cache_write_back="yes" expand_via_io="yes" writeable="yes"/>
+ 	</vfs>
+ 	<policy label_prefix="squid" root="/" writeable="yes"/>
+      </config>
+      <route>
+	<service name="Block"><child name="squid_block"/></service>
+	<any-service> <parent/> <any-child /> </any-service>
+      </route>
+    </start>
+   
+
+    <start name="squid" caps="2000">
+      <resource name="RAM" quantum="2G"/>
+      <config>
+	<large seek="yes"/>
+	<vfs>
+	  <dir name="/">
+            <dir name="squid-root"> </dir>
+	  </dir>
+	  <fs/>
+	</vfs>
+	<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
+      </config>
+    </start>
+    
+  </config>
+
+  <content>
+    <rom label="vfs"/>
+    <rom label="vfs.lib.so"/>
+    <rom label="ahci_drv"/>    
+    <rom label="ld.lib.so"/>    
+    <rom label="squid"/>
+    <rom label="squid_block.raw"/>
+  </content>
+</runtime>

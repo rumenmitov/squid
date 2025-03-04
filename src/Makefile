@@ -1,0 +1,1 @@
+squid: app/squid/*.cc

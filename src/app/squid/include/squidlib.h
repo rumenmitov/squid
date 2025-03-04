@@ -34,16 +34,16 @@ extern "C"
 #define SQUID_ERROR_RED "\033[31m"
 #define SQUID_ERROR_RESET "\033[0m"
 
-#define SQUID_ERROR_FMT                                                       \
-    "[" SQUID_ERROR_RED "SQUID ERROR" SQUID_ERROR_RESET "] "
+#define SQUID_ERROR_FMT "[" SQUID_ERROR_RED "SQUID ERROR" SQUID_ERROR_RESET "] "
 
-    enum SquidError squid_hash (void **hash);
-    enum SquidError squid_write (void *hash, void *payload,
-                                 unsigned long long size);
-    enum SquidError squid_read (void *hash, void *payload);
-    enum SquidError squid_delete (void *hash);
+    enum SquidError squid_hash(void** hash);
+    enum SquidError squid_write(void* hash,
+                                void* payload,
+                                unsigned long long size);
+    enum SquidError squid_read(void* hash, void* payload);
+    enum SquidError squid_delete(void* hash);
 
-    enum SquidError squid_test (void);
+    enum SquidError squid_test(void);
 
 #ifdef __cplusplus
 }
