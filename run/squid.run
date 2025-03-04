@@ -99,6 +99,7 @@ install_config $config
 build_boot_image [list {*}[build_artifacts] squid_block.raw]
 
 run_genode_until {benchmark finished*} 1000
+#run_genode_until forever
 
 #exec rm -f bin/vfs_block.raw
 #exec rm -f bin/squid_block.raw

@@ -16,6 +16,10 @@
  An ongoing snapshot is contained within the <squidroot>/current directory.
  Completed snapshots are stored within /<squidroot>/<timestamp>, where
  <timestamp> is a unix timestamp of when the snapshot was completed.
+
+ The parent structure (SnapshotRoot for L1, L1 for L2, and L2 for
+ Squid File) keeps track of its free children via a bit array. If the
+ bit is 1, the child is available and vice versa.
 */
 
 #ifndef __SQUID_H
@@ -45,10 +49,12 @@ namespace SquidSnapshot {
     enum Error
     {
         OutOfHashes,
+	InvalidHash,
         WriteFile,
         ReadFile,
         CreateFile,
         CorruptedFile,
+        DeleteFile,
         None
     };
 
@@ -60,14 +66,15 @@ namespace SquidSnapshot {
     /**
      * @brief Amount of entries in each level of the snapshot hierarchy.
      */
-    static const unsigned int ROOT_SIZE = 3;
-    static const unsigned int __ROOT_SIZE = WORD_ALIGN(ROOT_SIZE);
+    // BUG: Program halts for large values of ROOT_SIZE * L1_SIZE * L2_SIZE.
+    static const uint64_t ROOT_SIZE = 5;
+    static const uint64_t __ROOT_SIZE = WORD_ALIGN(ROOT_SIZE);
 
-    static const unsigned int L1_SIZE = 2;
-    static const unsigned int __L1_SIZE = WORD_ALIGN(L1_SIZE);
+    static const uint64_t L1_SIZE = 5;
+    static const uint64_t __L1_SIZE = WORD_ALIGN(L1_SIZE);
 
-    static const unsigned int L2_SIZE = 5;
-    static const unsigned int __L2_SIZE = WORD_ALIGN(L2_SIZE);
+    static const uint64_t L2_SIZE = 5;
+    static const uint64_t __L2_SIZE = WORD_ALIGN(L2_SIZE);
 
     struct Main;
     class SnapshotRoot;
@@ -82,7 +89,7 @@ namespace SquidSnapshot {
     {
       private:
         L1Dir* freelist = nullptr;
-        unsigned int freeindex;
+        uint64_t freeindex;
         Genode::Bit_array<__ROOT_SIZE> freemask;
 
         SnapshotRoot(const SnapshotRoot&) = delete;
@@ -96,7 +103,7 @@ namespace SquidSnapshot {
         bool is_full(void);
 
         L1Dir* get_entry(void);
-        void return_entry(unsigned int);
+        void return_entry(uint64_t);
 
         SquidFileHash* get_hash(void);
     };
@@ -108,10 +115,10 @@ namespace SquidSnapshot {
     {
       private:
         L2Dir* freelist = nullptr;
-        unsigned int freeindex;
+        uint64_t freeindex;
         Genode::Bit_array<__L1_SIZE> freemask;
 
-        unsigned int l1_dir;
+        uint64_t l1_dir;
 
         SnapshotRoot* parent;
 
@@ -119,14 +126,14 @@ namespace SquidSnapshot {
         L1Dir& operator=(const L1Dir&) = delete;
 
       public:
-        L1Dir(SnapshotRoot*, unsigned int);
+        L1Dir(SnapshotRoot*, uint64_t);
         ~L1Dir(void);
 
         Genode::Directory::Path to_path(void);
         bool is_full(void);
 
         L2Dir* get_entry(void);
-        void return_entry(unsigned int);
+        void return_entry(uint64_t);
     };
 
     /**
@@ -136,11 +143,11 @@ namespace SquidSnapshot {
     {
       private:
         SquidFileHash* freelist = nullptr;
-        unsigned int freeindex;
+        uint64_t freeindex;
         Genode::Bit_array<__L2_SIZE> freemask;
 
-        unsigned int l1_dir;
-        unsigned int l2_dir;
+        uint64_t l1_dir;
+        uint64_t l2_dir;
 
         L1Dir* parent;
 
@@ -148,26 +155,28 @@ namespace SquidSnapshot {
         L2Dir& operator=(const L2Dir&) = delete;
 
       public:
-        L2Dir(L1Dir*, unsigned int l1, unsigned int l2);
+        L2Dir(L1Dir*, uint64_t l1, uint64_t l2);
         ~L2Dir(void);
 
         Genode::Directory::Path to_path(void);
         bool is_full(void);
 
         SquidFileHash* get_entry(void);
-        void return_entry(unsigned int);
+        void return_entry(uint64_t);
     };
 
     /**
      * @brief Represents squid hash of a file. Comprised of L1, L2 directories
      * and the file id.
+     * @exception InvalidHash is thrown for any operations on the
+     * object, if it has been previously returned to the parent L2.
      */
     class SquidFileHash
     {
       private:
-        unsigned int l1_dir;
-        unsigned int l2_dir;
-        unsigned int file_id;
+        uint64_t l1_dir;
+        uint64_t l2_dir;
+        uint64_t file_id;
 
         L2Dir* parent;
 
@@ -175,10 +184,29 @@ namespace SquidSnapshot {
         SquidFileHash& operator=(const SquidFileHash&) = delete;
 
       public:
-        SquidFileHash(L2Dir*, unsigned int, unsigned int, unsigned int);
-        ~SquidFileHash(void);
+        class InvalidHash : public Exception
+        {};
+
+        bool is_valid = true;
+
+        SquidFileHash(L2Dir*, uint64_t, uint64_t, uint64_t);
 
         Genode::Directory::Path to_path(void);
+
+        /**
+         * @brief Writes payload to file (creates one if it does not exist).
+         */
+        enum Error write(void* payload, size_t size);
+
+        /**
+         * @brief Reads from squid file into payload buffer.
+         */
+        enum Error read(void* payload);
+
+        /**
+         * @brief Returns hash back to L2 parent, and invalidates this object.
+         */
+        void return_entry(void);
     };
 
     typedef Directory::Path Path;
@@ -192,9 +220,7 @@ namespace SquidSnapshot {
         Heap _heap{ _env.ram(), _env.rm() };
         Attached_rom_dataspace _config{ _env, "config" };
 
-        Vfs::Global_file_system_factory _fs_factory{ _heap };
         Vfs::Simple_env _vfs_env{ _env, _heap, _config.xml().sub_node("vfs") };
-        Vfs::File_system& _fs = _vfs_env.root_dir();
         Root_directory _root_dir{ _env, _heap, _config.xml().sub_node("vfs") };
 
         Genode::Entrypoint _ep_timer{ _env,
@@ -205,7 +231,7 @@ namespace SquidSnapshot {
         Timer::Connection _timer{ _env, _ep_timer, "squid_timer" };
 
         // TODO proper error handling
-        Vfs::Vfs_handle* createdir(const Genode::Directory::Path& path);
+        void createdir(const Genode::Directory::Path& path);
     };
 
     class Main
@@ -226,17 +252,7 @@ namespace SquidSnapshot {
         /**
          * @brief Responsible for managing file structure of snapshot.
          */
-        SnapshotRoot* root_manager = nullptr;
-
-        /**
-         * @brief Writes payload to file (creates one if it does not exist).
-         */
-        enum Error write(Path const& path, void* payload, size_t size);
-
-        /**
-         * @brief Reads from squid file into payload buffer.
-         */
-        enum Error read(Path const& path, void* payload);
+        SnapshotRoot root_manager{};
 
         /**
          * @brief Unit test.
