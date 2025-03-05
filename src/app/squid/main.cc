@@ -1,3 +1,4 @@
+#include "squidlib.h"
 #include "util/construct_at.h"
 #include <base/component.h>
 #include <benchmark.h>
@@ -50,10 +51,13 @@ Component::construct(Genode::Env& env)
             break;
     }
 
+    squid_init_snapshot();
+
     Genode::log("benchmarking squid...");
 
     squid_benchmark();
-    SquidSnapshot::global_squid->finish();
 
     Genode::log("benchmark finished.");
+
+    squid_finish_snapshot();
 }

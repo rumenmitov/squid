@@ -324,7 +324,13 @@ namespace SquidSnapshot {
         construct_at<SquidSnapshot::SnapshotRoot>(&root_manager);
     }
 
-    void Main::finish(void)
+    void Main::init_snapshot(void) 
+    {
+	Genode::String<256> path("/", SQUIDROOT, "/current");
+	SquidSnapshot::squidutils->createdir(path);
+    }
+
+    void Main::finish_snapshot(void)
     {
         Genode::int64_t timestamp =
           SquidSnapshot::squidutils->_timer.curr_time()
@@ -333,9 +339,6 @@ namespace SquidSnapshot {
 
         Genode::String<1024> snapshot_timestamp("/", SQUIDROOT, "/", timestamp);
         Genode::String<1024> snapshot_current("/", SQUIDROOT, "/current");
-
-        // char snapshot_current[1024];
-        // Format::snprintf(snapshot_current, 1024, "/%s/current", SQUIDROOT);
 
         if (SquidSnapshot::squidutils->_vfs_env.root_dir().rename(
               snapshot_current.string(), snapshot_timestamp.string()) ==
@@ -482,6 +485,16 @@ extern "C"
             default:
                 return SQUID_NONE;
         }
+    }
+
+    void squid_init_snapshot(void) 
+    {
+	SquidSnapshot::global_squid->init_snapshot();
+    }
+
+    void squid_finish_snapshot(void) 
+    {
+	SquidSnapshot::global_squid->finish_snapshot();
     }
 }
 

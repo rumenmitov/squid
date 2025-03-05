@@ -9,6 +9,8 @@ squid_benchmark(void)
     obj.width = 34234;
     obj.height = 253534;
 
+    squid_init_snapshot();
+    
     for (Genode::uint64_t i = 0; i < 10000; i++) {
         Genode::log("benchmark ", i);
 
@@ -21,4 +23,6 @@ squid_benchmark(void)
         if (squid_write(filehash, (void*)&obj, sizeof(obj)) != SQUID_NONE)
             Genode::error("SQUID: write: ", i);
     }
+
+    squid_finish_snapshot();
 }

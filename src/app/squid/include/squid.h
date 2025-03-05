@@ -247,7 +247,9 @@ namespace SquidSnapshot {
            has been initialized.
         */
         Main(SquidSnapshot::SquidUtils*);
-        void finish();
+	
+	void init_snapshot();
+        void finish_snapshot();
 
         /**
          * @brief Responsible for managing file structure of snapshot.
