@@ -324,10 +324,12 @@ namespace SquidSnapshot {
         construct_at<SquidSnapshot::SnapshotRoot>(&root_manager);
     }
 
-    void Main::init_snapshot(void) 
+    void Main::init_snapshot(void)
     {
-	Genode::String<256> path("/", SQUIDROOT, "/current");
-	SquidSnapshot::squidutils->createdir(path);
+        Genode::String<256> path("/", SQUIDROOT, "/current");
+        SquidSnapshot::squidutils->_vfs_env.root_dir().unlink(path.string());
+
+        SquidSnapshot::squidutils->createdir(path);
     }
 
     void Main::finish_snapshot(void)
@@ -487,14 +489,14 @@ extern "C"
         }
     }
 
-    void squid_init_snapshot(void) 
+    void squid_init_snapshot(void)
     {
-	SquidSnapshot::global_squid->init_snapshot();
+        SquidSnapshot::global_squid->init_snapshot();
     }
 
-    void squid_finish_snapshot(void) 
+    void squid_finish_snapshot(void)
     {
-	SquidSnapshot::global_squid->finish_snapshot();
+        SquidSnapshot::global_squid->finish_snapshot();
     }
 }
 

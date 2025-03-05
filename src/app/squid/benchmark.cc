@@ -8,8 +8,6 @@ squid_benchmark(void)
     obj.size = 100000;
     obj.width = 34234;
     obj.height = 253534;
-
-    squid_init_snapshot();
     
     for (Genode::uint64_t i = 0; i < 10000; i++) {
         Genode::log("benchmark ", i);
