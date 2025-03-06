@@ -24,8 +24,8 @@ build {
 # Build Ext4-file-system image
 #
 set image_size 16
-catch { exec $dd if=/dev/zero of=bin/squid_block.raw bs=1M seek=$image_size count=0 }
-catch { exec $mke4fs -O^metadata_csum -F bin/squid_block.raw }
+#catch { exec $dd if=/dev/zero of=bin/squid_block.raw bs=1M seek=$image_size count=0 }
+#catch { exec $mke4fs -O^metadata_csum -F bin/squid_block.raw }
 
 create_boot_directory
 

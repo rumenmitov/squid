@@ -326,10 +326,45 @@ namespace SquidSnapshot {
 
     void Main::init_snapshot(void)
     {
-        Genode::String<256> path("/", SQUIDROOT, "/current");
-        SquidSnapshot::squidutils->_vfs_env.root_dir().unlink(path.string());
+        Genode::String<256> root("/", SQUIDROOT);
+        Genode::String<256> current(root, "/current");
 
-        SquidSnapshot::squidutils->createdir(path);
+        SquidSnapshot::squidutils->_vfs_env.root_dir().unlink(current.string());
+
+        SquidSnapshot::squidutils->createdir(current);
+
+        char last_snapshot[256] = {};
+        Genode::Directory(SquidSnapshot::squidutils->_root_dir, root)
+          .for_each_entry([&](Directory::Entry const& entry) {
+              if (entry.name() != "current" &&
+                  entry.name() > Genode::String<256>(last_snapshot)) {
+
+                  memcpy(last_snapshot,
+                         entry.name().string(),
+                         strlen(entry.name().string()));
+
+                  last_snapshot[strlen(entry.name().string())] = 0;
+              }
+          });
+
+        if (strcmp(last_snapshot, "") != 0) {
+            for (uint64_t l1 = 0; l1 < ROOT_SIZE; l1++) {
+                Genode::String<256> last_l1_dir(root, "/", String<256>(last_snapshot), "/", l1);
+                Genode::String<256> current_l1_dir(current, "/", l1);
+
+                for (uint64_t l2 = 0; l2 < L1_SIZE; l2++) {
+                    Genode::String<256> last_l2_dir(last_l1_dir, "/", l2);
+		    Genode::String<256> current_l2_dir(current_l1_dir, "/", l2);
+
+                    Directory(SquidSnapshot::squidutils->_root_dir, last_l2_dir)
+                      .for_each_entry([&](Directory::Entry const& entry) {
+                          // TODO: hard-link here
+                          Genode::log(
+                            "ENTRY: ", last_l2_dir, "/", entry.name());
+                      });
+                }
+            }
+        }
     }
 
     void Main::finish_snapshot(void)
