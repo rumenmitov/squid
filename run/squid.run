@@ -1,3 +1,5 @@
+# -*- mode: tcl -*-
+
 assert_spec linux
 
 #
@@ -87,7 +89,7 @@ append config {
 			<large seek="yes"/>
 			<vfs>
                         <dir name="squid-root"> </dir>
-				<fs/>
+                        <fs/>
 			</vfs>
 			<libc stdout="/dev/log" stderr="/dev/log" rtc="/dev/rtc"/>
 		</config>
@@ -98,8 +100,9 @@ install_config $config
 
 build_boot_image [list {*}[build_artifacts] squid_block.raw]
 
-run_genode_until {benchmark finished*} 1000
-#run_genode_until forever
+#run_genode_until {benchmark finished*} 1000
+run_genode_until forever
 
 #exec rm -f bin/vfs_block.raw
 #exec rm -f bin/squid_block.raw
+

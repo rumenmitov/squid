@@ -8,6 +8,7 @@
 #include <util/misc_math.h>
 #include <util/string.h>
 
+
 namespace SquidSnapshot {
 
     SnapshotRoot::SnapshotRoot()
@@ -318,7 +319,7 @@ namespace SquidSnapshot {
         if (handle)
             handle->close();
     }
-
+    
     Main::Main(SquidSnapshot::SquidUtils*)
     {
         construct_at<SquidSnapshot::SnapshotRoot>(&root_manager);
@@ -339,25 +340,74 @@ namespace SquidSnapshot {
               if (entry.name() != "current" &&
                   entry.name() > Genode::String<256>(last_snapshot)) {
 
-                  memcpy(last_snapshot,
-                         entry.name().string(),
-                         strlen(entry.name().string()));
+                  Genode::memcpy(last_snapshot,
+                                 entry.name().string(),
+                                 Genode::strlen(entry.name().string()));
 
-                  last_snapshot[strlen(entry.name().string())] = 0;
+                  last_snapshot[Genode::strlen(entry.name().string())] = 0;
               }
           });
 
-        if (strcmp(last_snapshot, "") != 0) {
+        if (Genode::strcmp(last_snapshot, "") != 0) {
             for (uint64_t l1 = 0; l1 < ROOT_SIZE; l1++) {
-                Genode::String<256> last_l1_dir(root, "/", String<256>(last_snapshot), "/", l1);
+                Genode::String<256> last_l1_dir(
+                  root, "/", String<256>(last_snapshot), "/", l1);
                 Genode::String<256> current_l1_dir(current, "/", l1);
 
                 for (uint64_t l2 = 0; l2 < L1_SIZE; l2++) {
                     Genode::String<256> last_l2_dir(last_l1_dir, "/", l2);
-		    Genode::String<256> current_l2_dir(current_l1_dir, "/", l2);
+                    Genode::String<256> current_l2_dir(current_l1_dir, "/", l2);
+
+                    SquidSnapshot::squidutils->_vfs_env.root_dir().rename("this", "that");
+                    
+                    SquidSnapshot::squidutils->_vfs_env.root_dir().hardlink("something", "other thing");
 
                     Directory(SquidSnapshot::squidutils->_root_dir, last_l2_dir)
                       .for_each_entry([&](Directory::Entry const& entry) {
+                          // TODO: catch errors when opening files
+                          Genode::String<1024> p1(
+                            current_l2_dir, "/", entry.name());
+                          // Genode::Path<1024> recv_path(p1);
+
+                          Genode::String<1024> p2(
+                            last_l2_dir, "/", entry.name());
+
+                          if (squidutils->_vfs_env.root_dir().hardlink(p2.string(), p1.string()) != 0)
+                              throw Genode::Exception();
+
+                          Genode::log("LINKED: ", p2, " ---> ", p1);
+                          
+
+                          // New_file recv(SquidSnapshot::squidutils->_root_dir,
+                          //               recv_path);
+
+                          // Genode::Path<1024> sendr_path(p2);
+
+                          // Readonly_file sendr(
+                          //   SquidSnapshot::squidutils->_root_dir, sendr_path);
+
+                          // Readonly_file::At at{ 0 };
+
+                          // char payload[1024];
+                          // Byte_range_ptr buffer(payload, sizeof(payload));
+
+                          // TODO: Error handling
+                          // for (;;) {
+                          //   size_t const read_bytes = sendr.read(at, buffer);
+
+                          //   at.value += read_bytes;
+
+                          //   if (read_bytes < buffer.num_bytes)
+                          //       break;
+                          // }
+
+                          // if (recv.append(payload, at.value) !=
+                          //     New_file::Append_result::OK) {
+                          //   throw Genode::Exception();
+                          // }
+
+                          // TODO: close files if necessary
+
                           // TODO: hard-link here
                           Genode::log(
                             "ENTRY: ", last_l2_dir, "/", entry.name());
@@ -382,6 +432,8 @@ namespace SquidSnapshot {
             Vfs::Directory_service::RENAME_ERR_NO_ENTRY) {
             Genode::error("rename no good!");
         }
+
+        Genode::log("timestamp: ", snapshot_timestamp);
     }
 
     Error Main::test(void)

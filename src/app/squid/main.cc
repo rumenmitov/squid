@@ -1,5 +1,4 @@
 #include "squidlib.h"
-#include "util/construct_at.h"
 #include <base/component.h>
 #include <benchmark.h>
 #include <squid.h>
@@ -17,6 +16,9 @@
 SquidSnapshot::SquidUtils* SquidSnapshot::squidutils = nullptr;
 SquidSnapshot::Main* SquidSnapshot::global_squid = nullptr;
 
+//extern "C" void wait_for_continue();
+
+
 void
 Component::construct(Genode::Env& env)
 {
@@ -25,6 +27,9 @@ Component::construct(Genode::Env& env)
 
     static SquidSnapshot::Main local_squid(SquidSnapshot::squidutils);
     SquidSnapshot::global_squid = &local_squid;
+
+
+    // wait_for_continue();
 
     Genode::log("testing squid...");
 
@@ -53,11 +58,11 @@ Component::construct(Genode::Env& env)
 
     squid_init_snapshot();
 
-    Genode::log("benchmarking squid...");
+//    Genode::log("benchmarking squid...");
 
-    squid_benchmark();
+//    squid_benchmark();
 
-    Genode::log("benchmark finished.");
+//    Genode::log("benchmark finished.");
 
     squid_finish_snapshot();
 }

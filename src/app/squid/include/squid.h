@@ -49,7 +49,7 @@ namespace SquidSnapshot {
     enum Error
     {
         OutOfHashes,
-	InvalidHash,
+        InvalidHash,
         WriteFile,
         ReadFile,
         CreateFile,
@@ -247,8 +247,8 @@ namespace SquidSnapshot {
            has been initialized.
         */
         Main(SquidSnapshot::SquidUtils*);
-	
-	void init_snapshot();
+
+        void init_snapshot();
         void finish_snapshot();
 
         /**
