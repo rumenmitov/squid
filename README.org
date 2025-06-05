@@ -4,6 +4,9 @@
 #+options: toc:nil
 #+startup: overview
 
+#+BEGIN_QUOTE
+⚠️⚠️⚠️ This approach is being abandoned because I could not implement hardlinks in Genode! ⚠️⚠️⚠️
+#+END_QUOTE
 
 * Minutiae
 - Genode-only source code (used for testing): https://github.com/rumenmitov/squid/
